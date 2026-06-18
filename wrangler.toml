@@ -1,0 +1,7 @@
+name = "encfile"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "visits_db"
+database_name = "visits-db"
+database_id = "04d41a2b-a123-47db-814f-c984c3dc56b9"

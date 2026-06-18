@@ -7,158 +7,415 @@
     <title>AES-CTR 文件加密工具</title>
     <style>
         :root {
-            --primary: #7c3aed;
-            /* 紫色主题区分 GCM */
-            --bg: #f5f3ff;
+            --bg: #f6f7f9;
             --card: #ffffff;
-            --text: #1e1b4b;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --accent-soft: #eef2ff;
+            --success: #059669;
+            --success-bg: #ecfdf5;
+            --error: #dc2626;
+            --error-bg: #fef2f2;
+            --warning-bg: #fffbeb;
+            --warning-text: #92400e;
+            --warning-border: #fde68a;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow: 0 4px 24px -8px rgba(15, 23, 42, 0.12), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            background: var(--bg);
+            background-image: radial-gradient(circle at 20% 0%, rgba(79, 70, 229, 0.04), transparent 40%),
+                              radial-gradient(circle at 80% 100%, rgba(79, 70, 229, 0.03), transparent 40%);
             color: var(--text);
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             margin: 0;
+            padding: 32px 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
             background: var(--card);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            padding: 36px 32px;
+            border-radius: 14px;
+            box-shadow: var(--shadow);
             width: 100%;
-            max-width: 500px;
-            border: 1px solid #ddd6fe;
+            max-width: 580px;
+            border: 1px solid var(--border);
+        }
+
+        .header {
+            margin-bottom: 24px;
+            text-align: center;
         }
 
         h1 {
-            text-align: center;
-            margin-bottom: 0.5rem;
-            font-size: 1.5rem;
-            color: var(--primary);
+            margin: 0 0 6px 0;
+            font-size: 1.35rem;
+            color: var(--text);
+            font-weight: 650;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            margin-bottom: 10px;
+            font-weight: 400;
+        }
+
+        .visit-counter {
+            display: inline-block;
+            color: var(--accent);
+            font-size: 0.72rem;
+            background: var(--accent-soft);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
         }
 
         .warning {
-            background-color: #fef3c7;
-            color: #92400e;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #f59e0b;
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            margin-bottom: 22px;
+            border: 1px solid var(--warning-border);
+            line-height: 1.55;
         }
 
         .tabs {
             display: flex;
-            margin-bottom: 1.5rem;
-            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 22px;
+            background: var(--border-light);
+            border-radius: 10px;
+            padding: 4px;
+            gap: 4px;
         }
 
         .tab {
             flex: 1;
-            padding: 10px;
+            padding: 9px;
             text-align: center;
             cursor: pointer;
-            font-weight: 600;
-            color: #6b7280;
-            transition: all 0.3s;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            font-size: 0.88rem;
+            user-select: none;
+            border-radius: 7px;
         }
 
         .tab.active {
-            color: var(--primary);
-            border-bottom: 2px solid var(--primary);
-            margin-bottom: -2px;
+            color: var(--text);
+            background: var(--card);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text);
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 18px;
         }
 
         label {
             display: block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 7px;
             font-weight: 500;
-            font-size: 0.9rem;
+            font-size: 0.82rem;
+            color: var(--text);
         }
 
-        input[type="file"],
+        input[type="text"],
         input[type="password"] {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #c4b5fd;
-            border-radius: 6px;
+            padding: 10px 13px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             box-sizing: border-box;
-            background: #fafafa;
+            background: var(--card);
+            font-size: 0.88rem;
+            transition: all 0.15s;
+            font-family: inherit;
+            color: var(--text);
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            border: 1.5px dashed var(--border);
+            border-radius: 10px;
+            padding: 24px 20px;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: var(--border-light);
+        }
+
+        .file-input-wrapper:hover {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+
+        .file-input-text {
+            color: var(--text);
+            font-size: 0.86rem;
+            font-weight: 500;
+        }
+
+        .file-input-hint {
+            color: var(--text-light);
+            font-size: 0.74rem;
+            margin-top: 4px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         button {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--primary);
+            padding: 10px 16px;
+            background: var(--accent);
             color: white;
             border: none;
-            border-radius: 6px;
-            font-size: 1rem;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: background 0.2s;
-            margin-top: 10px;
+            transition: all 0.15s;
+            font-family: inherit;
         }
 
-        button:hover {
-            background-color: #6d28d9;
+        button:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         button:disabled {
-            background-color: #a78bfa;
+            background: #cbd5e1;
             cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button.secondary:hover:not(:disabled) {
+            background: var(--border-light);
+            border-color: var(--text-light);
+        }
+
+        button.full {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .mode-info {
+            margin-top: 12px;
+            padding: 9px 12px;
+            border-radius: 7px;
+            font-size: 0.76rem;
+            line-height: 1.5;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid rgba(79, 70, 229, 0.1);
+        }
+
+        /* 队列样式 */
+        .queue-section {
+            margin-top: 22px;
+            display: none;
+        }
+
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .queue-stats {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .queue-list {
+            max-height: 420px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+        }
+
+        .queue-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .queue-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .queue-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .queue-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.15s;
+        }
+
+        .queue-item:last-child {
+            border-bottom: none;
+        }
+
+        .queue-item-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            border-radius: 50%;
+            font-weight: 600;
+        }
+
+        .queue-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .queue-item-name {
+            font-weight: 500;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.83rem;
+        }
+
+        .queue-item-meta {
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            margin-top: 2px;
+        }
+
+        .queue-item-progress {
+            width: 52px;
+            text-align: right;
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+        }
+
+        .queue-item.status-pending .queue-item-icon { color: var(--text-light); background: var(--border-light); }
+        .queue-item.status-processing .queue-item-icon { color: var(--accent); background: var(--accent-soft); }
+        .queue-item.status-done .queue-item-icon { color: var(--success); background: var(--success-bg); }
+        .queue-item.status-error .queue-item-icon { color: var(--error); background: var(--error-bg); }
+        .queue-item.status-done .queue-item-name { color: var(--text-muted); }
+        .queue-item.status-done { background: rgba(236, 253, 245, 0.4); }
+
+        .queue-item-bar {
+            width: 100%;
+            height: 3px;
+            background: var(--border-light);
+            margin-top: 6px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .queue-item-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.25s ease;
+            border-radius: 2px;
+        }
+
+        .queue-item.status-done .queue-item-bar-fill {
+            background: var(--success);
+            width: 100%;
+        }
+
+        .queue-item.status-error .queue-item-bar-fill {
+            background: var(--error);
+            width: 100%;
         }
 
         .status {
-            margin-top: 1rem;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 0.9rem;
+            margin-top: 14px;
+            padding: 10px 13px;
+            border-radius: 8px;
+            font-size: 0.82rem;
             display: none;
+            font-weight: 500;
+        }
+
+        .status.success { background: var(--success-bg); color: var(--success); display: block; border: 1px solid rgba(5, 150, 105, 0.15); }
+        .status.error { background: var(--error-bg); color: var(--error); display: block; border: 1px solid rgba(220, 38, 38, 0.15); }
+        .status.loading { background: var(--accent-soft); color: var(--accent); display: block; border: 1px solid rgba(79, 70, 229, 0.15); }
+
+        #decrypt-section { display: none; }
+
+        .empty-hint {
+            padding: 28px;
             text-align: center;
-        }
-
-        .status.success {
-            background-color: #dcfce7;
-            color: #166534;
-            display: block;
-        }
-
-        .status.error {
-            background-color: #fee2e2;
-            color: #991b1b;
-            display: block;
-        }
-
-        .status.loading {
-            background-color: #e0e7ff;
-            color: #3730a3;
-            display: block;
-        }
-
-        #decrypt-section {
-            display: none;
-        }
-
-        #progress-fill {
-            height: 100%;
-            width: 0%;
-            background-color: #28a745;
-            transition: width 0.2s;
-        }
-
-        #status {
-            margin-top: 10px;
-            color: #666;
-            font-size: 14px;
+            color: var(--text-light);
+            font-size: 0.8rem;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
@@ -167,10 +424,14 @@
 <body>
 
     <div class="container">
-        <h1>🔐 AES-CTR 加密工具</h1>
+        <div class="header">
+            <h1>AES-CTR 文件加密工具</h1>
+            <div class="subtitle">本地加密 · 文件不上传 · 隐私安全</div>
+            <div id="visit-counter" class="visit-counter">访问统计加载中</div>
+        </div>
 
         <div class="warning">
-            <strong>注意：</strong> CTR 模式不提供完整性校验。如果密码错误，解密将生成乱码文件且不会报错。请妥善保管密码。
+            <strong>注意：</strong> CTR 模式不提供完整性校验。密码错误会生成乱码文件且不报错，请妥善保管密码。
         </div>
 
         <div class="tabs">
@@ -181,48 +442,82 @@
         <!-- 加密区域 -->
         <div id="encrypt-section">
             <div class="form-group">
-                <label>选择文件</label>
-                <input type="file" id="encrypt-file-input" multiple>
+                <label>选择文件或文件夹</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="encrypt-file-input" multiple>
+                    <div class="file-input-text">点击选择文件（支持多选）</div>
+                    <div class="file-input-hint">或选择文件夹批量处理</div>
+                </div>
+                <div class="btn-row">
+                    <button class="secondary" onclick="selectFolder('encrypt')" style="flex:1">选择文件夹</button>
+                    <button class="secondary" onclick="clearFiles('encrypt')" style="flex:1">清空列表</button>
+                </div>
             </div>
             <div class="form-group">
                 <label>设置密码</label>
                 <input type="text" id="encrypt-password" placeholder="建议至少8位字符">
             </div>
-            <button onclick="processEncryption()" id="btn-encrypt">加密并下载 (.ctr)</button>
+            <button class="full" onclick="processEncryption()" id="btn-encrypt">开始加密</button>
+            <div id="encrypt-mode-info" class="mode-info"></div>
+
+            <div class="queue-section" id="encrypt-queue-section">
+                <div class="queue-header">
+                    <span>处理队列</span>
+                    <span class="queue-stats" id="encrypt-queue-stats"></span>
+                </div>
+                <div class="queue-list" id="encrypt-queue-list">
+                    <div class="empty-hint">暂无文件</div>
+                </div>
+            </div>
         </div>
 
         <!-- 解密区域 -->
         <div id="decrypt-section">
             <div class="form-group">
-                <label>选择加密文件 (.ctr)</label>
-                <input type="file" id="decrypt-file-input">
+                <label>选择加密文件</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="decrypt-file-input" multiple>
+                    <div class="file-input-text">点击选择文件（支持多选）</div>
+                    <div class="file-input-hint">或选择文件夹批量处理</div>
+                </div>
+                <div class="btn-row">
+                    <button class="secondary" onclick="selectFolder('decrypt')" style="flex:1">选择文件夹</button>
+                    <button class="secondary" onclick="clearFiles('decrypt')" style="flex:1">清空列表</button>
+                </div>
             </div>
             <div class="form-group">
                 <label>输入密码</label>
                 <input type="text" id="decrypt-password" placeholder="输入解密密码">
             </div>
-            <button onclick="processDecryption()" id="btn-decrypt">解密并下载</button>
+            <button class="full" onclick="processDecryption()" id="btn-decrypt">开始解密</button>
+            <div id="decrypt-mode-info" class="mode-info"></div>
+
+            <div class="queue-section" id="decrypt-queue-section">
+                <div class="queue-header">
+                    <span>处理队列</span>
+                    <span class="queue-stats" id="decrypt-queue-stats"></span>
+                </div>
+                <div class="queue-list" id="decrypt-queue-list">
+                    <div class="empty-hint">暂无文件</div>
+                </div>
+            </div>
         </div>
 
         <div id="status-msg" class="status"></div>
-
-        <div id="progress-container">
-            <div id="progress-bar">
-                <div id="progress-fill"></div>
-            </div>
-            <div id="status">准备中...</div>
-        </div>
     </div>
+
+    <!-- 隐藏的文件夹选择输入框 -->
+    <input type="file" id="encrypt-folder-input" webkitdirectory multiple style="display:none">
+    <input type="file" id="decrypt-folder-input" webkitdirectory multiple style="display:none">
 
     <script>
         // --- 核心 AES-CTR 逻辑 ---
-        // 辅助函数：ArrayBuffer 转 Hex 字符串
         function bufferToHex(buffer) {
             return Array.from(new Uint8Array(buffer))
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join('');
         }
-        // 2. 转换函数
+
         function hexToUint8Array(hex) {
             const bytes = new Uint8Array(hex.length / 2);
             for (let i = 0; i < hex.length; i += 2) {
@@ -231,53 +526,141 @@
             return bytes;
         }
 
-        // 2. 转换函数
         function md5Utils(str) {
-            return hexToUint8Array(md5(str + ''))
+            return hexToUint8Array(md5(str + ''));
         }
 
-        function updateProgress(percent, text) {
-            document.getElementById('progress-fill').style.width = percent + '%';
-            document.getElementById('status').innerText = text;
+        // --- 队列管理 ---
+        let encryptQueue = [];
+        let decryptQueue = [];
+        let isProcessing = false;
+
+        function getQueue(mode) {
+            return mode === 'encrypt' ? encryptQueue : decryptQueue;
         }
 
-        // 1. 从密码派生密钥 (PBKDF2)
+        function setQueue(mode, queue) {
+            if (mode === 'encrypt') encryptQueue = queue;
+            else decryptQueue = queue;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+
+        function renderQueue(mode) {
+            const queue = getQueue(mode);
+            const listEl = document.getElementById(mode + '-queue-list');
+            const statsEl = document.getElementById(mode + '-queue-stats');
+            const sectionEl = document.getElementById(mode + '-queue-section');
+
+            if (queue.length === 0) {
+                sectionEl.style.display = 'none';
+                return;
+            }
+
+            sectionEl.style.display = 'block';
+
+            const pending = queue.filter(f => f.status === 'pending').length;
+            const done = queue.filter(f => f.status === 'done').length;
+            const error = queue.filter(f => f.status === 'error').length;
+            const processing = queue.filter(f => f.status === 'processing').length;
+            statsEl.textContent = `共 ${queue.length} 个 · 等待 ${pending} · 完成 ${done} · 失败 ${error}`;
+
+            listEl.innerHTML = queue.map((f, i) => {
+                const icon = f.status === 'done' ? '✓' :
+                             f.status === 'error' ? '✕' :
+                             f.status === 'processing' ? '●' : '○';
+                const statusText = f.status === 'done' ? '已完成' :
+                                   f.status === 'error' ? '失败: ' + (f.error || '') :
+                                   f.status === 'processing' ? (f.progress || 0) + '%' :
+                                   '等待中';
+                return `
+                    <div class="queue-item status-${f.status}">
+                        <div class="queue-item-icon">${icon}</div>
+                        <div class="queue-item-info">
+                            <div class="queue-item-name">${f.name}</div>
+                            <div class="queue-item-meta">${formatSize(f.size)} · ${statusText}</div>
+                            <div class="queue-item-bar"><div class="queue-item-bar-fill" style="width:${f.progress || 0}%"></div></div>
+                        </div>
+                        <div class="queue-item-progress">${f.progress || 0}%</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateQueueItem(mode, index, updates) {
+            const queue = getQueue(mode);
+            if (queue[index]) {
+                Object.assign(queue[index], updates);
+                renderQueue(mode);
+            }
+        }
+
+        // --- 文件选择 ---
+        function handleFileSelect(mode, files) {
+            const queue = getQueue(mode);
+            for (const file of files) {
+                queue.push({
+                    file: file,
+                    name: file.name,
+                    size: file.size,
+                    status: 'pending',
+                    progress: 0,
+                    error: ''
+                });
+            }
+            setQueue(mode, queue);
+            renderQueue(mode);
+        }
+
+        function selectFolder(mode) {
+            const input = document.getElementById(mode + '-folder-input');
+            input.onchange = function() {
+                if (this.files.length) {
+                    handleFileSelect(mode, Array.from(this.files));
+                }
+                this.value = '';
+            };
+            input.click();
+        }
+
+        function clearFiles(mode) {
+            setQueue(mode, []);
+            renderQueue(mode);
+            document.getElementById(mode + '-file-input').value = '';
+        }
+
+        // 初始化文件输入监听
+        document.getElementById('encrypt-file-input').onchange = function() {
+            if (this.files.length) handleFileSelect('encrypt', Array.from(this.files));
+        };
+        document.getElementById('decrypt-file-input').onchange = function() {
+            if (this.files.length) handleFileSelect('decrypt', Array.from(this.files));
+        };
+
+        // --- 加密核心 ---
         async function deriveKey(password, sizeSalt) {
-            sizeSalt = sizeSalt + ''
+            sizeSalt = sizeSalt + '';
             const enc = new TextEncoder();
             const keyMaterial = await window.crypto.subtle.importKey(
-                "raw",
-                enc.encode(password),
-                { name: "PBKDF2" },
-                false,
-                ["deriveBits", "deriveKey"]
+                "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]
             );
-            // 生成16字节数据。
-            const keyLength = 16
+            const keyLength = 16;
             const passwdBit = await window.crypto.subtle.deriveBits(
-                {
-                    name: "PBKDF2",
-                    salt: enc.encode('AES-CTR'),
-                    iterations: 1000,
-                    hash: "SHA-256"
-                },
-                keyMaterial,
-                keyLength * 8
+                { name: "PBKDF2", salt: enc.encode('AES-CTR'), iterations: 1000, hash: "SHA-256" },
+                keyMaterial, keyLength * 8
             );
-            const passwdOutward = bufferToHex(passwdBit)
-            const passkey = md5Utils(passwdOutward + sizeSalt)
-            console.log('@@passkey-md5', passwdOutward + sizeSalt, passwdOutward, passkey)
-            const aesctr = await window.crypto.subtle.importKey(
-                "raw",                      // 格式：原始字节流
-                passkey,                    // 数据：密码的字节数组
-                { name: "AES-CTR", length: 128 },       // 算法：声明这个材料将用于 AES-CTR 算法
-                false,                    // 不可导出：安全起见，不允许把这个中间材料再变回字节数组
-                ["encrypt", "decrypt"]
+            const passwdOutward = bufferToHex(passwdBit);
+            const passkey = md5Utils(passwdOutward + sizeSalt);
+            return await window.crypto.subtle.importKey(
+                "raw", passkey, { name: "AES-CTR", length: 128 }, false, ["encrypt", "decrypt"]
             );
-            return aesctr
         }
 
-        // 2. 读取 Blob 为 ArrayBuffer
         async function readFileAsArrayBuffer(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -287,191 +670,263 @@
             });
         }
 
-        function createReadableStream(key, iv, file) {
-            // 3. 准备输出流 (使用 Stream API 实现真正的流式下载，不占内存)
-            // 注意：这里我们构建一个自定义的 ReadableStream
-            const stream = new ReadableStream({
-                async start(controller) {
-                    try {
-                        // 3.2 分片读取并加密文件
-                        const CHUNK_SIZE = 1024 * 1024 * 10; // 1MB 分片，字节必须要是16的倍数，因为处理position需要除以16
-                        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-                        for (let i = 0; i < totalChunks; i++) {
-                            updateProgress(Math.floor(i / totalChunks * 100), '下载中');
-                            const start = i * CHUNK_SIZE;
-                            const end = Math.min(start + CHUNK_SIZE, file.size);
-                            const chunkBlob = file.slice(start, end);
-
-                            // 读取分片为 ArrayBuffer
-                            const chunkBuffer = await readFileAsArrayBuffer(chunkBlob);
-
-                            // 加密当前分片
-                            const encryptedChunk = await encryptChunk(key, iv, start, chunkBuffer);
-
-                            // 将加密后的数据推入流
-                            controller.enqueue(encryptedChunk);
-
-                            // 更新进度
-                            const percent = 5 + ((i + 1) / totalChunks) * 95;
-                            updateProgress(percent, `加密中... ${((i + 1) / totalChunks * 100).toFixed(1)}%`);
-                        }
-
-                        controller.close(); // 结束流
-                    } catch (err) {
-                        controller.error(err);
-                        console.error(err);
-                    }
-                }
-            });
-            return stream
-        }
-        // nonce: Uint8Array, increment int
         function incrementIV(nonce, increment) {
-            const iv = new DataView(nonce.buffer)
-            const MAX_UINT32 = 0xffffffff
-            const incrementBig = ~~(increment / MAX_UINT32)
-            const incrementLittle = (increment % MAX_UINT32) - incrementBig
-            // split the 128bits IV in 4 numbers, 32bits each
-            let overflow = 0
+            const iv = new DataView(nonce.buffer);
+            const MAX_UINT32 = 0xffffffff;
+            const incrementBig = ~~(increment / MAX_UINT32);
+            const incrementLittle = (increment % MAX_UINT32) - incrementBig;
+            let overflow = 0;
             for (let idx = 0; idx < 4; ++idx) {
-                let num = iv.getUint32(12 - idx * 4)
-                let inc = overflow
-                if (idx === 0) inc += incrementLittle
-                if (idx === 1) inc += incrementBig
-                num += inc
-                const numBig = ~~(num / MAX_UINT32)
-                const numLittle = (num % MAX_UINT32) - numBig
-                overflow = numBig
-                iv.setUint32(12 - idx * 4, numLittle)
+                let num = iv.getUint32(12 - idx * 4);
+                let inc = overflow;
+                if (idx === 0) inc += incrementLittle;
+                if (idx === 1) inc += incrementBig;
+                num += inc;
+                const numBig = ~~(num / MAX_UINT32);
+                const numLittle = (num % MAX_UINT32) - numBig;
+                overflow = numBig;
+                iv.setUint32(12 - idx * 4, numLittle);
             }
-            return iv.buffer
-        }
-        // 确保chunkIndex是 16倍数，如果不是的话，需要去掉前面的几个字节
-        async function encryptChunk(passkey, iv, chunkIndex, fileData) {
-            const increment = Math.floor(chunkIndex / 16)
-            let nonce = iv
-            if (increment) {
-                nonce = incrementIV(iv, increment)
-            }
-            // 执行 AES-CTR 加密
-            const encryptedContent = await window.crypto.subtle.encrypt(
-                {
-                    name: "AES-CTR",
-                    counter: nonce,
-                    length: 64 // 计数器长度，通常为 64 或 128
-                },
-                passkey,
-                fileData
-            );
-            console.log('@@@encryptChunk fileData', chunkIndex, bufferToHex(nonce), encryptedContent)
-            return new Uint8Array(encryptedContent)
+            return iv.buffer;
         }
 
-        // 3. 加密过程
+        async function encryptChunk(passkey, iv, chunkIndex, fileData) {
+            const increment = Math.floor(chunkIndex / 16);
+            let nonce = iv;
+            if (increment) {
+                nonce = incrementIV(iv, increment);
+            }
+            const encryptedContent = await window.crypto.subtle.encrypt(
+                { name: "AES-CTR", counter: nonce, length: 64 },
+                passkey, fileData
+            );
+            return new Uint8Array(encryptedContent);
+        }
+
+        function stripEncryptedExtension(filename) {
+            const encExts = ['.ctr', '.enc', '.encrypted', '.aes', '.aesctr', '.crypto'];
+            const lowerName = filename.toLowerCase();
+            for (const ext of encExts) {
+                if (lowerName.endsWith(ext)) {
+                    const original = filename.slice(0, -ext.length);
+                    return original || filename;
+                }
+            }
+            return filename;
+        }
+
+        const supportsStreamWrite = typeof window.showSaveFilePicker === 'function';
+
+        function checkLargeFileInLimitedMode(fileSize, action) {
+            if (supportsStreamWrite) return true;
+            const GB = 1024 * 1024 * 1024;
+            if (fileSize >= 2 * GB) {
+                const sizeGB = (fileSize / GB).toFixed(2);
+                return confirm(
+                    `警告：大文件风险\n\n` +
+                    `当前浏览器为受限模式（不支持流式写入）。\n` +
+                    `文件大小：${sizeGB} GB\n\n` +
+                    `受限模式下，文件 > 2GB 可能导致浏览器崩溃。\n\n` +
+                    `建议切换到 Chrome 或 Edge 浏览器。\n\n` +
+                    `点击"确定"继续${action}，点击"取消"返回。`
+                );
+            }
+            return true;
+        }
+
+        // --- 批量加密 ---
         async function processEncryption() {
-            const fileInput = document.getElementById('encrypt-file-input');
             const password = document.getElementById('encrypt-password').value;
             const btn = document.getElementById('btn-encrypt');
 
-            if (!fileInput.files.length) return showStatus('请选择文件', 'error');
+            if (encryptQueue.length === 0) return showStatus('请选择文件', 'error');
             if (!password) return showStatus('请输入密码', 'error');
+            if (isProcessing) return;
+
+            isProcessing = true;
+            btn.disabled = true;
+            btn.textContent = '处理中...';
 
             try {
-                btn.disabled = true;
-                const file = fileInput.files[0];
-                const fileData = await file.arrayBuffer();
-                // const fileData = new Uint8Array(32).fill(1)
-                console.log('正在加密...', 'loading', file.size, typeof fileData);
-                // 获取密钥
-                const passkey = await deriveKey(password, file.size);
-                // 生成随机 Salt (16字节) 和 Nonce (8字节)
-                const nonce = md5Utils(file.size + '')
+                for (let i = 0; i < encryptQueue.length; i++) {
+                    const item = encryptQueue[i];
+                    if (item.status === 'done') continue;
 
-                console.log('@@key-enc', passkey)
-                const stream = createReadableStream(passkey, nonce, file)
+                    updateQueueItem('encrypt', i, { status: 'processing', progress: 0 });
 
-                const response = new Response(stream);
-                const blob = await response.blob();
+                    try {
+                        if (!checkLargeFileInLimitedMode(item.size, '加密')) {
+                            updateQueueItem('encrypt', i, { status: 'error', error: '已取消', progress: 100 });
+                            continue;
+                        }
 
-                console.log('@@密文', bufferToHex(blob))
-                // 组合文件: [Salt 16] + [Nonce 8] + [Encrypted Data]
-                // 注意：这里我们只存 8 字节的 Nonce，因为后 8 字节计数器固定为 0
-                // const blob = new Blob([encryptedContent], { type: "application/octet-stream" });
-                downloadFile(blob, file.name + ".ctr");
-                showStatus('加密成功！', 'success');
-            } catch (e) {
-                console.error(e);
-                showStatus('加密失败: ' + e.message, 'error');
+                        const passkey = await deriveKey(password, item.size);
+                        const nonce = md5Utils(item.size + '');
+                        const CHUNK_SIZE = 1024 * 1024 * 10;
+                        const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
+
+                        if (supportsStreamWrite) {
+                            const fileHandle = await window.showSaveFilePicker({
+                                suggestedName: item.name + '.ctr',
+                                types: [{ description: 'Encrypted File', accept: { 'application/octet-stream': ['.ctr'] } }]
+                            });
+                            const writable = await fileHandle.createWritable();
+
+                            for (let j = 0; j < totalChunks; j++) {
+                                const start = j * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, item.size);
+                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
+                                const encryptedChunk = await encryptChunk(passkey, nonce, start, chunkBuffer);
+                                await writable.write(encryptedChunk);
+                                const percent = Math.floor(((j + 1) / totalChunks) * 100);
+                                updateQueueItem('encrypt', i, { progress: percent });
+                            }
+                            await writable.close();
+                        } else {
+                            const chunks = [];
+                            for (let j = 0; j < totalChunks; j++) {
+                                const start = j * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, item.size);
+                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
+                                const encryptedChunk = await encryptChunk(passkey, nonce, start, chunkBuffer);
+                                chunks.push(encryptedChunk);
+                                const percent = Math.floor(((j + 1) / totalChunks) * 100);
+                                updateQueueItem('encrypt', i, { progress: percent });
+                            }
+                            const blob = new Blob(chunks, { type: "application/octet-stream" });
+                            downloadFile(blob, item.name + ".ctr");
+                        }
+
+                        updateQueueItem('encrypt', i, { status: 'done', progress: 100 });
+                    } catch (e) {
+                        console.error(e);
+                        const errorMsg = e.name === 'AbortError' ? '已取消' : e.message;
+                        updateQueueItem('encrypt', i, { status: 'error', error: errorMsg, progress: 100 });
+                    }
+                }
+
+                const doneCount = encryptQueue.filter(f => f.status === 'done').length;
+                const errorCount = encryptQueue.filter(f => f.status === 'error').length;
+                if (errorCount === 0) {
+                    showStatus(`全部完成，共加密 ${doneCount} 个文件`, 'success');
+                } else {
+                    showStatus(`完成 ${doneCount} 个，失败 ${errorCount} 个`, 'error');
+                }
             } finally {
+                isProcessing = false;
                 btn.disabled = false;
+                btn.textContent = '开始加密';
             }
         }
 
-        // 4. 解密过程
+        // --- 批量解密 ---
         async function processDecryption() {
-            const fileInput = document.getElementById('decrypt-file-input');
             const password = document.getElementById('decrypt-password').value;
             const btn = document.getElementById('btn-decrypt');
 
-            if (!fileInput.files.length) return showStatus('请选择加密文件', 'error');
+            if (decryptQueue.length === 0) return showStatus('请选择文件', 'error');
             if (!password) return showStatus('请输入密码', 'error');
+            if (isProcessing) return;
+
+            isProcessing = true;
+            btn.disabled = true;
+            btn.textContent = '处理中...';
 
             try {
-                showStatus('正在解密...', 'loading');
-                btn.disabled = true;
+                for (let i = 0; i < decryptQueue.length; i++) {
+                    const item = decryptQueue[i];
+                    if (item.status === 'done') continue;
 
-                const file = fileInput.files[0];
-                const fileData = await file.arrayBuffer();
+                    updateQueueItem('decrypt', i, { status: 'processing', progress: 0 });
 
-                // 提取 Salt (前16字节) 和 Nonce (接下来8字节)
-                const salt = fileData.slice(0, 16);
-                const nonce = fileData.slice(16, 24);
-                const data = fileData.slice(24);
+                    try {
+                        if (!checkLargeFileInLimitedMode(item.size, '解密')) {
+                            updateQueueItem('decrypt', i, { status: 'error', error: '已取消', progress: 100 });
+                            continue;
+                        }
 
-                // 获取密钥
-                const key = await deriveKey(password, new Uint8Array(salt));
-                console.log('@@key-dec', key)
-                // 重建计数器块
-                const counterBlock = createCounterBlock(new Uint8Array(nonce));
+                        const key = await deriveKey(password, item.size);
+                        const nonce = md5Utils(item.size + '');
+                        const CHUNK_SIZE = 1024 * 1024 * 10;
+                        const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
+                        const originalName = stripEncryptedExtension(item.name);
 
-                // 执行 AES-CTR 解密
-                // 注意：CTR 解密不会报错，即使密码错误也会输出乱码
-                const decryptedContent = await window.crypto.subtle.decrypt(
-                    {
-                        name: "AES-CTR",
-                        counter: counterBlock,
-                        length: 64
-                    },
-                    key,
-                    data
-                );
+                        if (supportsStreamWrite) {
+                            const fileHandle = await window.showSaveFilePicker({
+                                suggestedName: originalName,
+                                types: [{ description: 'All Files', accept: { '*/*': [] } }]
+                            });
+                            const writable = await fileHandle.createWritable();
 
-                const originalName = file.name.replace(/\.ctr$/, '');
-                const blob = new Blob([decryptedContent], { type: "application/octet-stream" });
+                            for (let j = 0; j < totalChunks; j++) {
+                                const start = j * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, item.size);
+                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
+                                const increment = Math.floor(start / 16);
+                                let counterNonce = nonce;
+                                if (increment) {
+                                    counterNonce = new Uint8Array(incrementIV(nonce, increment));
+                                }
+                                const decryptedChunk = await window.crypto.subtle.decrypt(
+                                    { name: "AES-CTR", counter: counterNonce, length: 64 },
+                                    key, chunkBuffer
+                                );
+                                await writable.write(decryptedChunk);
+                                const percent = Math.floor(((j + 1) / totalChunks) * 100);
+                                updateQueueItem('decrypt', i, { progress: percent });
+                            }
+                            await writable.close();
+                        } else {
+                            const chunks = [];
+                            for (let j = 0; j < totalChunks; j++) {
+                                const start = j * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, item.size);
+                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
+                                const increment = Math.floor(start / 16);
+                                let counterNonce = nonce;
+                                if (increment) {
+                                    counterNonce = new Uint8Array(incrementIV(nonce, increment));
+                                }
+                                const decryptedChunk = await window.crypto.subtle.decrypt(
+                                    { name: "AES-CTR", counter: counterNonce, length: 64 },
+                                    key, chunkBuffer
+                                );
+                                chunks.push(decryptedChunk);
+                                const percent = Math.floor(((j + 1) / totalChunks) * 100);
+                                updateQueueItem('decrypt', i, { progress: percent });
+                            }
+                            const blob = new Blob(chunks, { type: "application/octet-stream" });
+                            downloadFile(blob, originalName);
+                        }
 
-                downloadFile(blob, originalName);
-                showStatus('解密完成！请检查文件内容是否正确', 'success');
-            } catch (e) {
-                console.error(e);
-                showStatus('解密过程出错: ' + e.message, 'error');
+                        updateQueueItem('decrypt', i, { status: 'done', progress: 100 });
+                    } catch (e) {
+                        console.error(e);
+                        const errorMsg = e.name === 'AbortError' ? '已取消' : e.message;
+                        updateQueueItem('decrypt', i, { status: 'error', error: errorMsg, progress: 100 });
+                    }
+                }
+
+                const doneCount = decryptQueue.filter(f => f.status === 'done').length;
+                const errorCount = decryptQueue.filter(f => f.status === 'error').length;
+                if (errorCount === 0) {
+                    showStatus(`全部完成，共解密 ${doneCount} 个文件`, 'success');
+                } else {
+                    showStatus(`完成 ${doneCount} 个，失败 ${errorCount} 个`, 'error');
+                }
             } finally {
+                isProcessing = false;
                 btn.disabled = false;
+                btn.textContent = '开始解密';
             }
         }
 
         // --- 辅助函数 ---
-
         function switchTab(mode) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab[onclick="switchTab('${mode}')"]`).classList.add('active');
-
-            if (mode === 'encrypt') {
-                document.getElementById('encrypt-section').style.display = 'block';
-                document.getElementById('decrypt-section').style.display = 'none';
-            } else {
-                document.getElementById('encrypt-section').style.display = 'none';
-                document.getElementById('decrypt-section').style.display = 'block';
-            }
+            document.getElementById('encrypt-section').style.display = mode === 'encrypt' ? 'block' : 'none';
+            document.getElementById('decrypt-section').style.display = mode === 'decrypt' ? 'block' : 'none';
             document.getElementById('status-msg').style.display = 'none';
         }
 
@@ -491,6 +946,49 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
+
+        function initModeInfo() {
+            const encInfo = document.getElementById('encrypt-mode-info');
+            const decInfo = document.getElementById('decrypt-mode-info');
+            if (supportsStreamWrite) {
+                encInfo.textContent = '流式模式：边处理边写入硬盘，内存占用恒定，支持大文件。';
+                decInfo.textContent = '流式模式：边处理边写入硬盘，内存占用恒定，支持大文件。';
+            } else {
+                encInfo.textContent = '受限模式：不支持流式写入，文件 > 2GB 可能崩溃。建议使用 Chrome/Edge。';
+                decInfo.textContent = '受限模式：不支持流式写入，文件 > 2GB 可能崩溃。建议使用 Chrome/Edge。';
+                setTimeout(() => {
+                    alert(
+                        '浏览器兼容性警告\n\n' +
+                        '当前浏览器不支持流式写入（File System Access API）。\n\n' +
+                        '限制：\n' +
+                        '• 文件 > 2GB 可能导致浏览器崩溃\n' +
+                        '• iOS Safari/Chrome/Firefox 均不支持\n\n' +
+                        '解决方案：\n' +
+                        '• Windows/Android：使用 Chrome 或 Edge\n' +
+                        '• iOS：安装 "File Picker" Safari 扩展\n' +
+                        '• 或继续使用（小文件 < 1GB 可正常工作）'
+                    );
+                }, 500);
+            }
+        }
+
+        initModeInfo();
+
+        async function updateVisitCounter() {
+            try {
+                const response = await fetch('/api/visits');
+                const data = await response.json();
+                const counter = document.getElementById('visit-counter');
+                if (data.count !== undefined) {
+                    counter.innerHTML = '累计总访问：' + data.count + ' 次';
+                } else {
+                    counter.innerHTML = '访问统计不可用';
+                }
+            } catch (e) {
+                document.getElementById('visit-counter').innerHTML = '访问统计不可用';
+            }
+        }
+        updateVisitCounter();
     </script>
 
 </body>
