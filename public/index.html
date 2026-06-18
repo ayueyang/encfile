@@ -61,6 +61,36 @@
         .header {
             margin-bottom: 24px;
             text-align: center;
+            position: relative;
+        }
+
+        .github-link {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.15s;
+            background: var(--card);
+        }
+
+        .github-link:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .github-link svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
         }
 
         h1 {
@@ -425,6 +455,11 @@
 
     <div class="container">
         <div class="header">
+            <a href="https://github.com/ayueyang/encfile" target="_blank" rel="noopener" class="github-link" title="查看 GitHub 源码" aria-label="GitHub 项目地址">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+            </a>
             <h1>AES-CTR 文件加密工具</h1>
             <div class="subtitle">本地加密 · 文件不上传 · 隐私安全</div>
             <div id="visit-counter" class="visit-counter">访问统计加载中</div>
@@ -951,22 +986,23 @@
             const encInfo = document.getElementById('encrypt-mode-info');
             const decInfo = document.getElementById('decrypt-mode-info');
             if (supportsStreamWrite) {
-                encInfo.textContent = '流式模式：边处理边写入硬盘，内存占用恒定，支持大文件。';
-                decInfo.textContent = '流式模式：边处理边写入硬盘，内存占用恒定，支持大文件。';
+                encInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。';
+                decInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。';
             } else {
-                encInfo.textContent = '受限模式：不支持流式写入，文件 > 2GB 可能崩溃。建议使用 Chrome/Edge。';
-                decInfo.textContent = '受限模式：不支持流式写入，文件 > 2GB 可能崩溃。建议使用 Chrome/Edge。';
+                encInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
+                decInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
                 setTimeout(() => {
                     alert(
                         '浏览器兼容性警告\n\n' +
-                        '当前浏览器不支持流式写入（File System Access API）。\n\n' +
-                        '限制：\n' +
-                        '• 文件 > 2GB 可能导致浏览器崩溃\n' +
-                        '• iOS Safari/Chrome/Firefox 均不支持\n\n' +
-                        '解决方案：\n' +
-                        '• Windows/Android：使用 Chrome 或 Edge\n' +
-                        '• iOS：安装 "File Picker" Safari 扩展\n' +
-                        '• 或继续使用（小文件 < 1GB 可正常工作）'
+                        '当前浏览器不支持流式写入，文件 2-4GB 可能导致崩溃。\n\n' +
+                        '建议更换以下浏览器后使用：\n' +
+                        '• Chrome（谷歌）\n' +
+                        '• Edge（微软）\n' +
+                        '• 其他基于 Chromium 的主流浏览器（含国产浏览器如360、QQ、搜狗等）\n\n' +
+                        '苹果系统（iOS/iPadOS）完全不支持流式写入，所有 iOS 浏览器均受此限制。\n\n' +
+                        '原因：流式写入依赖 File System Access API，该 API 仅在 Chromium 内核浏览器中可用。' +
+                        'iOS 系统强制所有浏览器使用 WebKit 内核，Apple 未实现此 API 且未承诺支持。' +
+                        '当前受限模式下将使用内存累积方式处理，小文件（< 1GB）可正常使用。'
                     );
                 }, 500);
             }
