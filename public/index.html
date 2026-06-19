@@ -218,6 +218,29 @@
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
+        .chunk-select {
+            width: 100%;
+            padding: 10px 13px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-sizing: border-box;
+            background: var(--card);
+            font-size: 0.88rem;
+            font-family: inherit;
+            color: var(--text);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .chunk-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
         .file-input-wrapper {
             position: relative;
             border: 1.5px dashed var(--border);
@@ -470,6 +493,83 @@
             color: var(--text-light);
             font-size: 0.8rem;
         }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeIn 0.15s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-box {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 24px;
+            max-width: 380px;
+            width: 90%;
+            box-shadow: 0 20px 60px -12px rgba(15, 23, 42, 0.3);
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        .modal-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .modal-desc strong {
+            color: var(--warning-text);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 10px 0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        .modal-btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .modal-btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .modal-btn-secondary {
+            background: var(--border-light);
+            color: var(--text);
+        }
+
+        .modal-btn-secondary:hover {
+            background: var(--border);
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
 </head>
@@ -515,6 +615,16 @@
                 <label>设置密码</label>
                 <input type="text" id="encrypt-password" placeholder="建议至少8位字符">
             </div>
+            <div class="form-group">
+                <label>运行内存占用</label>
+                <select id="encrypt-chunk-size" class="chunk-select">
+                    <option value="10">10 MB</option>
+                    <option value="100">100 MB</option>
+                    <option value="200">200 MB</option>
+                    <option value="500">500 MB</option>
+                    <option value="1000">1 GB</option>
+                </select>
+            </div>
             <button class="full" onclick="processEncryption()" id="btn-encrypt">开始加密</button>
             <div id="encrypt-mode-info" class="mode-info"></div>
 
@@ -546,6 +656,16 @@
             <div class="form-group">
                 <label>输入密码</label>
                 <input type="text" id="decrypt-password" placeholder="输入解密密码">
+            </div>
+            <div class="form-group">
+                <label>运行内存占用</label>
+                <select id="decrypt-chunk-size" class="chunk-select">
+                    <option value="10">10 MB</option>
+                    <option value="100">100 MB</option>
+                    <option value="200">200 MB</option>
+                    <option value="500">500 MB</option>
+                    <option value="1000">1 GB</option>
+                </select>
             </div>
             <button class="full" onclick="processDecryption()" id="btn-decrypt">开始解密</button>
             <div id="decrypt-mode-info" class="mode-info"></div>
@@ -609,6 +729,16 @@
             return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
         }
 
+        function formatElapsed(ms) {
+            const sec = Math.floor(ms / 1000);
+            if (sec < 60) return sec + '秒';
+            const min = Math.floor(sec / 60);
+            const remainSec = sec % 60;
+            if (min < 60) return min + '分' + remainSec + '秒';
+            const hr = Math.floor(min / 60);
+            return hr + '时' + (min % 60) + '分';
+        }
+
         function renderQueue(mode) {
             const queue = getQueue(mode);
             const listEl = document.getElementById(mode + '-queue-list');
@@ -636,12 +766,13 @@
                                    f.status === 'error' ? '失败: ' + (f.error || '') :
                                    f.status === 'processing' ? (f.progress || 0) + '%' :
                                    '等待中';
+                const elapsedText = f.elapsed ? ' · ' + f.elapsed : (f.status === 'processing' && f.startTime ? ' · ' + formatElapsed(Date.now() - f.startTime) : '');
                 return `
                     <div class="queue-item status-${f.status}">
                         <div class="queue-item-icon">${icon}</div>
                         <div class="queue-item-info">
                             <div class="queue-item-name">${f.name}</div>
-                            <div class="queue-item-meta">${formatSize(f.size)} · ${statusText}</div>
+                            <div class="queue-item-meta">${formatSize(f.size)} · ${statusText}${elapsedText}</div>
                             <div class="queue-item-bar"><div class="queue-item-bar-fill" style="width:${f.progress || 0}%"></div></div>
                         </div>
                         <div class="queue-item-progress">${f.progress || 0}%</div>
@@ -668,7 +799,9 @@
                     size: file.size,
                     status: 'pending',
                     progress: 0,
-                    error: ''
+                    error: '',
+                    startTime: 0,
+                    elapsed: ''
                 });
             }
             setQueue(mode, queue);
@@ -776,6 +909,35 @@
         const supportsStreamWrite = typeof window.showSaveFilePicker === 'function';
         const supportsDirPicker = typeof window.showDirectoryPicker === 'function';
 
+        function showOutputModeDialog() {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal-box">
+                        <div class="modal-title">多文件输出方式</div>
+                        <div class="modal-desc">
+                            选择输出文件夹后，所有文件自动写入同一目录，无需逐个确认。<br><br>
+                            <strong>注意：</strong>不能选择系统文件夹（如 C:\\、桌面等），请选择普通文件夹（如 D:\\output 或文档子文件夹）。
+                        </div>
+                        <div class="modal-actions">
+                            <button class="modal-btn-secondary" id="modal-per-file">逐个下载</button>
+                            <button class="modal-btn-primary" id="modal-batch">选择文件夹</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#modal-per-file').onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve('per-file');
+                };
+                overlay.querySelector('#modal-batch').onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve('batch');
+                };
+            });
+        }
+
         function checkLargeFileInLimitedMode(fileSize, action) {
             if (supportsStreamWrite) return true;
             const GB = 1024 * 1024 * 1024;
@@ -809,13 +971,15 @@
             let dirHandle = null;
             const pendingItems = encryptQueue.filter(f => f.status !== 'done');
 
-            // 多文件时优先选择输出目录，一次授权批量写入
+            // 多文件时让用户选择输出方式
             if (pendingItems.length > 1 && supportsDirPicker) {
-                alert('多文件处理：请选择一个普通文件夹作为输出目录（如 D:\\output 或文档子文件夹），不能选择系统文件夹（如 C:\\、桌面等）。');
-                try {
-                    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                } catch (e) {
-                    dirHandle = null;
+                const mode = await showOutputModeDialog();
+                if (mode === 'batch') {
+                    try {
+                        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    } catch (e) {
+                        dirHandle = null;
+                    }
                 }
             }
 
@@ -824,7 +988,7 @@
                     const item = encryptQueue[i];
                     if (item.status === 'done') continue;
 
-                    updateQueueItem('encrypt', i, { status: 'processing', progress: 0 });
+                    updateQueueItem('encrypt', i, { status: 'processing', progress: 0, startTime: Date.now() });
 
                     try {
                         if (!checkLargeFileInLimitedMode(item.size, '加密')) {
@@ -834,7 +998,7 @@
 
                         const passkey = await deriveKey(password, item.size);
                         const nonce = md5Utils(item.size + '');
-                        const CHUNK_SIZE = 1024 * 1024 * 10;
+                        const CHUNK_SIZE = 1024 * 1024 * parseInt(document.getElementById('encrypt-chunk-size').value);
                         const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
 
                         if (supportsStreamWrite) {
@@ -877,7 +1041,7 @@
                             downloadFile(blob, item.name + ".ctr");
                         }
 
-                        updateQueueItem('encrypt', i, { status: 'done', progress: 100 });
+                        updateQueueItem('encrypt', i, { status: 'done', progress: 100, elapsed: formatElapsed(Date.now() - (encryptQueue[i].startTime || Date.now())) });
                     } catch (e) {
                         console.error(e);
                         const errorMsg = e.name === 'AbortError' ? '已取消' : e.message;
@@ -915,13 +1079,15 @@
             let dirHandle = null;
             const pendingItems = decryptQueue.filter(f => f.status !== 'done');
 
-            // 多文件时优先选择输出目录，一次授权批量写入
+            // 多文件时让用户选择输出方式
             if (pendingItems.length > 1 && supportsDirPicker) {
-                alert('多文件处理：请选择一个普通文件夹作为输出目录（如 D:\\output 或文档子文件夹），不能选择系统文件夹（如 C:\\、桌面等）。');
-                try {
-                    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                } catch (e) {
-                    dirHandle = null;
+                const mode = await showOutputModeDialog();
+                if (mode === 'batch') {
+                    try {
+                        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    } catch (e) {
+                        dirHandle = null;
+                    }
                 }
             }
 
@@ -930,7 +1096,7 @@
                     const item = decryptQueue[i];
                     if (item.status === 'done') continue;
 
-                    updateQueueItem('decrypt', i, { status: 'processing', progress: 0 });
+                    updateQueueItem('decrypt', i, { status: 'processing', progress: 0, startTime: Date.now() });
 
                     try {
                         if (!checkLargeFileInLimitedMode(item.size, '解密')) {
@@ -940,7 +1106,7 @@
 
                         const key = await deriveKey(password, item.size);
                         const nonce = md5Utils(item.size + '');
-                        const CHUNK_SIZE = 1024 * 1024 * 10;
+                        const CHUNK_SIZE = 1024 * 1024 * parseInt(document.getElementById('decrypt-chunk-size').value);
                         const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
                         const originalName = stripEncryptedExtension(item.name);
 
@@ -1000,7 +1166,7 @@
                             downloadFile(blob, originalName);
                         }
 
-                        updateQueueItem('decrypt', i, { status: 'done', progress: 100 });
+                        updateQueueItem('decrypt', i, { status: 'done', progress: 100, elapsed: formatElapsed(Date.now() - (decryptQueue[i].startTime || Date.now())) });
                     } catch (e) {
                         console.error(e);
                         const errorMsg = e.name === 'AbortError' ? '已取消' : e.message;
