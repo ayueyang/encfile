@@ -774,6 +774,7 @@
         }
 
         const supportsStreamWrite = typeof window.showSaveFilePicker === 'function';
+        const supportsDirPicker = typeof window.showDirectoryPicker === 'function';
 
         function checkLargeFileInLimitedMode(fileSize, action) {
             if (supportsStreamWrite) return true;
@@ -805,6 +806,24 @@
             btn.disabled = true;
             btn.textContent = '处理中...';
 
+            let dirHandle = null;
+            const pendingItems = encryptQueue.filter(f => f.status !== 'done');
+
+            // 多文件时优先选择输出目录，一次授权批量写入
+            if (pendingItems.length > 1 && supportsDirPicker) {
+                try {
+                    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                } catch (e) {
+                    if (e.name === 'AbortError') {
+                        isProcessing = false;
+                        btn.disabled = false;
+                        btn.textContent = '开始加密';
+                        return;
+                    }
+                    dirHandle = null;
+                }
+            }
+
             try {
                 for (let i = 0; i < encryptQueue.length; i++) {
                     const item = encryptQueue[i];
@@ -824,11 +843,19 @@
                         const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
 
                         if (supportsStreamWrite) {
-                            const fileHandle = await window.showSaveFilePicker({
-                                suggestedName: item.name + '.ctr',
-                                types: [{ description: 'Encrypted File', accept: { 'application/octet-stream': ['.ctr'] } }]
-                            });
-                            const writable = await fileHandle.createWritable();
+                            let writable;
+                            if (dirHandle) {
+                                // 批量模式：写入已选择的目录
+                                const fileHandle = await dirHandle.getFileHandle(item.name + '.ctr', { create: true });
+                                writable = await fileHandle.createWritable();
+                            } else {
+                                // 单文件模式：弹窗选择保存位置
+                                const fileHandle = await window.showSaveFilePicker({
+                                    suggestedName: item.name + '.ctr',
+                                    types: [{ description: 'Encrypted File', accept: { 'application/octet-stream': ['.ctr'] } }]
+                                });
+                                writable = await fileHandle.createWritable();
+                            }
 
                             for (let j = 0; j < totalChunks; j++) {
                                 const start = j * CHUNK_SIZE;
@@ -890,6 +917,24 @@
             btn.disabled = true;
             btn.textContent = '处理中...';
 
+            let dirHandle = null;
+            const pendingItems = decryptQueue.filter(f => f.status !== 'done');
+
+            // 多文件时优先选择输出目录，一次授权批量写入
+            if (pendingItems.length > 1 && supportsDirPicker) {
+                try {
+                    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                } catch (e) {
+                    if (e.name === 'AbortError') {
+                        isProcessing = false;
+                        btn.disabled = false;
+                        btn.textContent = '开始解密';
+                        return;
+                    }
+                    dirHandle = null;
+                }
+            }
+
             try {
                 for (let i = 0; i < decryptQueue.length; i++) {
                     const item = decryptQueue[i];
@@ -910,11 +955,19 @@
                         const originalName = stripEncryptedExtension(item.name);
 
                         if (supportsStreamWrite) {
-                            const fileHandle = await window.showSaveFilePicker({
-                                suggestedName: originalName,
-                                types: [{ description: 'All Files', accept: { '*/*': [] } }]
-                            });
-                            const writable = await fileHandle.createWritable();
+                            let writable;
+                            if (dirHandle) {
+                                // 批量模式：写入已选择的目录
+                                const fileHandle = await dirHandle.getFileHandle(originalName, { create: true });
+                                writable = await fileHandle.createWritable();
+                            } else {
+                                // 单文件模式：弹窗选择保存位置
+                                const fileHandle = await window.showSaveFilePicker({
+                                    suggestedName: originalName,
+                                    types: [{ description: 'All Files', accept: { '*/*': [] } }]
+                                });
+                                writable = await fileHandle.createWritable();
+                            }
 
                             for (let j = 0; j < totalChunks; j++) {
                                 const start = j * CHUNK_SIZE;
@@ -1009,8 +1062,9 @@
             const encInfo = document.getElementById('encrypt-mode-info');
             const decInfo = document.getElementById('decrypt-mode-info');
             if (supportsStreamWrite) {
-                encInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。';
-                decInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。';
+                const batchHint = supportsDirPicker ? '多文件自动选择输出目录，无需逐个确认。' : '';
+                encInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。' + batchHint;
+                decInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。' + batchHint;
             } else {
                 encInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
                 decInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
