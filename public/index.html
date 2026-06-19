@@ -811,15 +811,10 @@
 
             // 多文件时优先选择输出目录，一次授权批量写入
             if (pendingItems.length > 1 && supportsDirPicker) {
+                alert('多文件处理：请选择一个普通文件夹作为输出目录（如 D:\\output 或文档子文件夹），不能选择系统文件夹（如 C:\\、桌面等）。');
                 try {
                     dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
                 } catch (e) {
-                    if (e.name === 'AbortError') {
-                        isProcessing = false;
-                        btn.disabled = false;
-                        btn.textContent = '开始加密';
-                        return;
-                    }
                     dirHandle = null;
                 }
             }
@@ -922,15 +917,10 @@
 
             // 多文件时优先选择输出目录，一次授权批量写入
             if (pendingItems.length > 1 && supportsDirPicker) {
+                alert('多文件处理：请选择一个普通文件夹作为输出目录（如 D:\\output 或文档子文件夹），不能选择系统文件夹（如 C:\\、桌面等）。');
                 try {
                     dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
                 } catch (e) {
-                    if (e.name === 'AbortError') {
-                        isProcessing = false;
-                        btn.disabled = false;
-                        btn.textContent = '开始解密';
-                        return;
-                    }
                     dirHandle = null;
                 }
             }
