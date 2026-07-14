@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AES-CTR 文件加密工具</title>
+    <title>文件加密工具</title>
     <style>
         :root {
             --bg: #f6f7f9;
@@ -239,6 +239,14 @@
             outline: none;
             border-color: var(--accent);
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .algorithm-warning {
+            display: none;
+            margin-top: 8px;
+            color: var(--warning-text);
+            font-size: 0.76rem;
+            line-height: 1.5;
         }
 
         .file-input-wrapper {
@@ -572,9 +580,23 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
+    <script src="/js/ciphers.js"></script>
 </head>
 
 <body>
+
+    <div class="modal-overlay" id="iosAlert" style="display:none">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="ios-alert-title">
+            <div class="modal-title" id="ios-alert-title">当前设备不支持流式保存</div>
+            <div class="modal-desc">
+                iOS 和 iPadOS 上的浏览器无法边处理边保存大文件。请使用“转压缩包”，分卷下载后再用解压软件打开最后一个 ZIP 文件。
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn-secondary" type="button" onclick="closeIosAlert()">稍后</button>
+                <button class="modal-btn-primary" type="button" onclick="openSplitModeFromIosAlert()">使用转压缩包</button>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="header">
@@ -583,18 +605,19 @@
                     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                 </svg>
             </a>
-            <h1>AES-CTR 文件加密工具</h1>
+            <h1>文件加密工具</h1>
             <div class="subtitle">本地加密 · 文件不上传 · 隐私安全</div>
             <div id="visit-counter" class="visit-counter">访问统计加载中</div>
         </div>
 
         <div class="warning">
-            <strong>注意：</strong> CTR 模式不提供完整性校验。密码错误会生成乱码文件且不报错，请妥善保管密码。
+            <strong>注意：</strong> 流加密不提供完整性校验。密码或算法错误会生成乱码文件且不报错，请妥善保管密码并确认算法。
         </div>
 
         <div class="tabs">
             <div class="tab active" onclick="switchTab('encrypt')">加密</div>
             <div class="tab" onclick="switchTab('decrypt')">解密</div>
+            <div class="tab" onclick="switchTab('split')">转压缩包</div>
         </div>
 
         <!-- 加密区域 -->
@@ -614,6 +637,15 @@
             <div class="form-group">
                 <label>设置密码</label>
                 <input type="text" id="encrypt-password" placeholder="建议至少8位字符">
+            </div>
+            <div class="form-group">
+                <label>加密算法</label>
+                <select id="encrypt-algorithm" class="chunk-select" onchange="handleAlgorithmChange('encrypt')">
+                    <option value="aesctr">AES-CTR</option>
+                    <option value="chacha20">CHACHA20</option>
+                    <option value="rc4">RC4（废弃）</option>
+                </select>
+                <div id="encrypt-algorithm-warning" class="algorithm-warning">RC4 已废弃且安全性较弱，仅用于兼容旧文件。</div>
             </div>
             <div class="form-group">
                 <label>运行内存占用</label>
@@ -640,7 +672,7 @@
         </div>
 
         <!-- 解密区域 -->
-        <div id="decrypt-section">
+        <div id="decrypt-section" style="display:none">
             <div class="form-group">
                 <label>选择加密文件</label>
                 <div class="file-input-wrapper">
@@ -656,6 +688,15 @@
             <div class="form-group">
                 <label>输入密码</label>
                 <input type="text" id="decrypt-password" placeholder="输入解密密码">
+            </div>
+            <div class="form-group">
+                <label>解密算法</label>
+                <select id="decrypt-algorithm" class="chunk-select" onchange="handleAlgorithmChange('decrypt')">
+                    <option value="aesctr">AES-CTR</option>
+                    <option value="chacha20">CHACHA20</option>
+                    <option value="rc4">RC4（废弃）</option>
+                </select>
+                <div id="decrypt-algorithm-warning" class="algorithm-warning">RC4 已废弃且安全性较弱，仅用于兼容旧文件。</div>
             </div>
             <div class="form-group">
                 <label>运行内存占用</label>
@@ -681,45 +722,104 @@
             </div>
         </div>
 
+        <!-- 转压缩包区域 -->
+        <div id="split-section" style="display:none">
+            <div class="form-group">
+                <label>选择加密文件</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="split-file-input" multiple>
+                    <div class="file-input-text">点击选择文件（支持多选）</div>
+                    <div class="file-input-hint">或选择文件夹批量处理</div>
+                </div>
+                <div class="btn-row">
+                    <button class="secondary" onclick="selectFolder('split')" style="flex:1">选择文件夹</button>
+                    <button class="secondary" onclick="clearFiles('split')" style="flex:1">清空列表</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>输入密码</label>
+                <input type="text" id="split-password" placeholder="输入解密密码">
+            </div>
+            <div class="form-group">
+                <label>解密算法</label>
+                <select id="split-algorithm" class="chunk-select" onchange="handleAlgorithmChange('split')">
+                    <option value="aesctr">AES-CTR</option>
+                    <option value="chacha20">CHACHA20</option>
+                    <option value="rc4">RC4（废弃）</option>
+                </select>
+                <div id="split-algorithm-warning" class="algorithm-warning">RC4 已废弃且安全性较弱，仅用于兼容旧文件。</div>
+            </div>
+            <div class="form-group">
+                <label>压缩包大小</label>
+                <select id="split-chunk-size" class="chunk-select">
+                    <option value="10">10 MB</option>
+                    <option value="50">50 MB</option>
+                    <option value="100">100 MB</option>
+                    <option value="200">200 MB</option>
+                    <option value="500" selected>500 MB</option>
+                    <option value="1000">1 GB</option>
+                </select>
+            </div>
+            <button class="full" onclick="processSplitDecryption()" id="btn-split">开始转压缩包</button>
+            <div id="split-mode-info" class="mode-info">
+                <strong>原理说明：</strong><br>
+                ① 读取加密文件的一部分（按设定大小）<br>
+                ② 解密这部分数据<br>
+                ③ 打包成 ZIP 分卷文件（.z01, .z02... .zip）<br>
+                ④ 自动下载后释放内存<br>
+                ⑤ 继续处理下一部分，循环直到完成<br>
+                <br>
+                <strong>压缩包数量计算：</strong><br>
+                公式：压缩包数量 = 向上取整(文件大小 ÷ 设定的压缩包大小)<br>
+                例：1.2 GB 文件 ÷ 500 MB = 2.4 → 需要 3 个压缩包（前两个 500 MB，最后一个 200 MB）<br>
+                例：8 GB 文件 ÷ 1 GB = 8 → 需要 8 个压缩包（每个 1 GB）<br>
+                <br>
+                <strong>内存建议：</strong><br>
+                推荐设定值 ≤ 可用运行内存的 50%，避免浏览器卡顿。<br>
+                例如：手机可用内存 2 GB → 建议选 500 MB 或更小；电脑可用内存 8 GB → 可选 1 GB。<br>
+                <br>
+                <strong>适用场景：</strong><br>
+                - iOS 设备（不支持流式写入）<br>
+                - 浏览器内存不足时处理大文件<br>
+                - 下载后用 WinRAR/7-Zip 等解压软件打开最后一个 .zip 文件即可合并还原原文件
+            </div>
+
+            <div class="queue-section" id="split-queue-section">
+                <div class="queue-header">
+                    <span>处理队列</span>
+                    <span class="queue-stats" id="split-queue-stats"></span>
+                </div>
+                <div class="queue-list" id="split-queue-list">
+                    <div class="empty-hint">暂无文件</div>
+                </div>
+            </div>
+        </div>
+
         <div id="status-msg" class="status"></div>
     </div>
 
     <!-- 隐藏的文件夹选择输入框 -->
     <input type="file" id="encrypt-folder-input" webkitdirectory multiple style="display:none">
     <input type="file" id="decrypt-folder-input" webkitdirectory multiple style="display:none">
+    <input type="file" id="split-folder-input" webkitdirectory multiple style="display:none">
 
     <script>
-        // --- 核心 AES-CTR 逻辑 ---
-        function bufferToHex(buffer) {
-            return Array.from(new Uint8Array(buffer))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-        }
-
-        function hexToUint8Array(hex) {
-            const bytes = new Uint8Array(hex.length / 2);
-            for (let i = 0; i < hex.length; i += 2) {
-                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-            }
-            return bytes;
-        }
-
-        function md5Utils(str) {
-            return hexToUint8Array(md5(str + ''));
-        }
-
         // --- 队列管理 ---
         let encryptQueue = [];
         let decryptQueue = [];
+        let splitQueue = [];
         let isProcessing = false;
 
         function getQueue(mode) {
-            return mode === 'encrypt' ? encryptQueue : decryptQueue;
+            if (mode === 'encrypt') return encryptQueue;
+            if (mode === 'decrypt') return decryptQueue;
+            return splitQueue;
         }
 
         function setQueue(mode, queue) {
             if (mode === 'encrypt') encryptQueue = queue;
-            else decryptQueue = queue;
+            else if (mode === 'decrypt') decryptQueue = queue;
+            else splitQueue = queue;
         }
 
         function formatSize(bytes) {
@@ -737,6 +837,26 @@
             if (min < 60) return min + '分' + remainSec + '秒';
             const hr = Math.floor(min / 60);
             return hr + '时' + (min % 60) + '分';
+        }
+
+        function selectedAlgorithm(mode) {
+            return document.getElementById(mode + '-algorithm').value;
+        }
+
+        function algorithmLabel(algorithm) {
+            return EncfileCiphers.algorithms[algorithm].label;
+        }
+
+        function handleAlgorithmChange(mode) {
+            const algorithm = selectedAlgorithm(mode);
+            document.getElementById(mode + '-algorithm-warning').style.display = algorithm === 'rc4' ? 'block' : 'none';
+            const queue = getQueue(mode);
+            for (const item of queue) {
+                if (mode !== 'encrypt' && item.status !== 'processing' && item.status !== 'done' && !item.algorithmDetected) {
+                    item.algorithm = algorithm;
+                }
+            }
+            renderQueue(mode);
         }
 
         function renderQueue(mode) {
@@ -772,7 +892,7 @@
                         <div class="queue-item-icon">${icon}</div>
                         <div class="queue-item-info">
                             <div class="queue-item-name">${f.name}</div>
-                            <div class="queue-item-meta">${formatSize(f.size)} · ${statusText}${elapsedText}</div>
+                            <div class="queue-item-meta">${formatSize(f.size)} · ${algorithmLabel(f.algorithm)} · ${statusText}${elapsedText}</div>
                             <div class="queue-item-bar"><div class="queue-item-bar-fill" style="width:${f.progress || 0}%"></div></div>
                         </div>
                         <div class="queue-item-progress">${f.progress || 0}%</div>
@@ -792,10 +912,17 @@
         // --- 文件选择 ---
         function handleFileSelect(mode, files) {
             const queue = getQueue(mode);
+            const fallbackAlgorithm = selectedAlgorithm(mode);
             for (const file of files) {
+                const resolved = mode === 'encrypt'
+                    ? { algorithm: fallbackAlgorithm, filename: file.name, detected: false }
+                    : EncfileCiphers.resolveFileAlgorithm(file.name, fallbackAlgorithm);
                 queue.push({
                     file: file,
                     name: file.name,
+                    outputName: resolved.filename,
+                    algorithm: resolved.algorithm,
+                    algorithmDetected: resolved.detected,
                     size: file.size,
                     status: 'pending',
                     progress: 0,
@@ -832,78 +959,20 @@
         document.getElementById('decrypt-file-input').onchange = function() {
             if (this.files.length) handleFileSelect('decrypt', Array.from(this.files));
         };
-
-        // --- 加密核心 ---
-        async function deriveKey(password, sizeSalt) {
-            sizeSalt = sizeSalt + '';
-            const enc = new TextEncoder();
-            const keyMaterial = await window.crypto.subtle.importKey(
-                "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]
-            );
-            const keyLength = 16;
-            const passwdBit = await window.crypto.subtle.deriveBits(
-                { name: "PBKDF2", salt: enc.encode('AES-CTR'), iterations: 1000, hash: "SHA-256" },
-                keyMaterial, keyLength * 8
-            );
-            const passwdOutward = bufferToHex(passwdBit);
-            const passkey = md5Utils(passwdOutward + sizeSalt);
-            return await window.crypto.subtle.importKey(
-                "raw", passkey, { name: "AES-CTR", length: 128 }, false, ["encrypt", "decrypt"]
-            );
-        }
+        document.getElementById('split-file-input').onchange = function() {
+            if (this.files.length) handleFileSelect('split', Array.from(this.files));
+        };
 
         async function readFileAsArrayBuffer(blob) {
+            if (blob.arrayBuffer) {
+                return blob.arrayBuffer();
+            }
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = reject;
                 reader.readAsArrayBuffer(blob);
             });
-        }
-
-        function incrementIV(nonce, increment) {
-            const iv = new DataView(nonce.buffer);
-            const MAX_UINT32 = 0xffffffff;
-            const incrementBig = ~~(increment / MAX_UINT32);
-            const incrementLittle = (increment % MAX_UINT32) - incrementBig;
-            let overflow = 0;
-            for (let idx = 0; idx < 4; ++idx) {
-                let num = iv.getUint32(12 - idx * 4);
-                let inc = overflow;
-                if (idx === 0) inc += incrementLittle;
-                if (idx === 1) inc += incrementBig;
-                num += inc;
-                const numBig = ~~(num / MAX_UINT32);
-                const numLittle = (num % MAX_UINT32) - numBig;
-                overflow = numBig;
-                iv.setUint32(12 - idx * 4, numLittle);
-            }
-            return iv.buffer;
-        }
-
-        async function encryptChunk(passkey, iv, chunkIndex, fileData) {
-            const increment = Math.floor(chunkIndex / 16);
-            let nonce = iv;
-            if (increment) {
-                nonce = incrementIV(iv, increment);
-            }
-            const encryptedContent = await window.crypto.subtle.encrypt(
-                { name: "AES-CTR", counter: nonce, length: 64 },
-                passkey, fileData
-            );
-            return new Uint8Array(encryptedContent);
-        }
-
-        function stripEncryptedExtension(filename) {
-            const encExts = ['.ctr', '.enc', '.encrypted', '.aes', '.aesctr', '.crypto'];
-            const lowerName = filename.toLowerCase();
-            for (const ext of encExts) {
-                if (lowerName.endsWith(ext)) {
-                    const original = filename.slice(0, -ext.length);
-                    return original || filename;
-                }
-            }
-            return filename;
         }
 
         const supportsStreamWrite = typeof window.showSaveFilePicker === 'function';
@@ -996,8 +1065,8 @@
                             continue;
                         }
 
-                        const passkey = await deriveKey(password, item.size);
-                        const nonce = md5Utils(item.size + '');
+                        const cipher = await EncfileCiphers.create(item.algorithm, password, item.size);
+                        const outputName = EncfileCiphers.encryptedFilename(item.name, item.algorithm);
                         const CHUNK_SIZE = 1024 * 1024 * parseInt(document.getElementById('encrypt-chunk-size').value);
                         const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
 
@@ -1005,13 +1074,13 @@
                             let writable;
                             if (dirHandle) {
                                 // 批量模式：写入已选择的目录
-                                const fileHandle = await dirHandle.getFileHandle(item.name + '.ctr', { create: true });
+                                const fileHandle = await dirHandle.getFileHandle(outputName, { create: true });
                                 writable = await fileHandle.createWritable();
                             } else {
                                 // 单文件模式：弹窗选择保存位置
                                 const fileHandle = await window.showSaveFilePicker({
-                                    suggestedName: item.name + '.ctr',
-                                    types: [{ description: 'Encrypted File', accept: { 'application/octet-stream': ['.ctr'] } }]
+                                    suggestedName: outputName,
+                                    types: [{ description: 'Encrypted File', accept: { 'application/octet-stream': [EncfileCiphers.algorithms[item.algorithm].suffix] } }]
                                 });
                                 writable = await fileHandle.createWritable();
                             }
@@ -1020,7 +1089,7 @@
                                 const start = j * CHUNK_SIZE;
                                 const end = Math.min(start + CHUNK_SIZE, item.size);
                                 const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
-                                const encryptedChunk = await encryptChunk(passkey, nonce, start, chunkBuffer);
+                                const encryptedChunk = await cipher.transform(new Uint8Array(chunkBuffer), start);
                                 await writable.write(encryptedChunk);
                                 const percent = Math.floor(((j + 1) / totalChunks) * 100);
                                 updateQueueItem('encrypt', i, { progress: percent });
@@ -1032,13 +1101,13 @@
                                 const start = j * CHUNK_SIZE;
                                 const end = Math.min(start + CHUNK_SIZE, item.size);
                                 const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
-                                const encryptedChunk = await encryptChunk(passkey, nonce, start, chunkBuffer);
+                                const encryptedChunk = await cipher.transform(new Uint8Array(chunkBuffer), start);
                                 chunks.push(encryptedChunk);
                                 const percent = Math.floor(((j + 1) / totalChunks) * 100);
                                 updateQueueItem('encrypt', i, { progress: percent });
                             }
                             const blob = new Blob(chunks, { type: "application/octet-stream" });
-                            downloadFile(blob, item.name + ".ctr");
+                            downloadFile(blob, outputName);
                         }
 
                         updateQueueItem('encrypt', i, { status: 'done', progress: 100, elapsed: formatElapsed(Date.now() - (encryptQueue[i].startTime || Date.now())) });
@@ -1104,11 +1173,10 @@
                             continue;
                         }
 
-                        const key = await deriveKey(password, item.size);
-                        const nonce = md5Utils(item.size + '');
+                        const cipher = await EncfileCiphers.create(item.algorithm, password, item.size);
                         const CHUNK_SIZE = 1024 * 1024 * parseInt(document.getElementById('decrypt-chunk-size').value);
                         const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
-                        const originalName = stripEncryptedExtension(item.name);
+                        const originalName = item.outputName;
 
                         if (supportsStreamWrite) {
                             let writable;
@@ -1129,15 +1197,7 @@
                                 const start = j * CHUNK_SIZE;
                                 const end = Math.min(start + CHUNK_SIZE, item.size);
                                 const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
-                                const increment = Math.floor(start / 16);
-                                let counterNonce = nonce;
-                                if (increment) {
-                                    counterNonce = new Uint8Array(incrementIV(nonce, increment));
-                                }
-                                const decryptedChunk = await window.crypto.subtle.decrypt(
-                                    { name: "AES-CTR", counter: counterNonce, length: 64 },
-                                    key, chunkBuffer
-                                );
+                                const decryptedChunk = await cipher.transform(new Uint8Array(chunkBuffer), start);
                                 await writable.write(decryptedChunk);
                                 const percent = Math.floor(((j + 1) / totalChunks) * 100);
                                 updateQueueItem('decrypt', i, { progress: percent });
@@ -1149,15 +1209,7 @@
                                 const start = j * CHUNK_SIZE;
                                 const end = Math.min(start + CHUNK_SIZE, item.size);
                                 const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(start, end));
-                                const increment = Math.floor(start / 16);
-                                let counterNonce = nonce;
-                                if (increment) {
-                                    counterNonce = new Uint8Array(incrementIV(nonce, increment));
-                                }
-                                const decryptedChunk = await window.crypto.subtle.decrypt(
-                                    { name: "AES-CTR", counter: counterNonce, length: 64 },
-                                    key, chunkBuffer
-                                );
+                                const decryptedChunk = await cipher.transform(new Uint8Array(chunkBuffer), start);
                                 chunks.push(decryptedChunk);
                                 const percent = Math.floor(((j + 1) / totalChunks) * 100);
                                 updateQueueItem('decrypt', i, { progress: percent });
@@ -1194,6 +1246,7 @@
             document.querySelector(`.tab[onclick="switchTab('${mode}')"]`).classList.add('active');
             document.getElementById('encrypt-section').style.display = mode === 'encrypt' ? 'block' : 'none';
             document.getElementById('decrypt-section').style.display = mode === 'decrypt' ? 'block' : 'none';
+            document.getElementById('split-section').style.display = mode === 'split' ? 'block' : 'none';
             document.getElementById('status-msg').style.display = 'none';
         }
 
@@ -1211,7 +1264,155 @@
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        }
+
+        async function processSplitDecryption() {
+            const password = document.getElementById('split-password').value;
+            const btn = document.getElementById('btn-split');
+
+            if (splitQueue.length === 0) return showStatus('请选择文件', 'error');
+            if (!password) return showStatus('请输入密码', 'error');
+            if (isProcessing) return;
+
+            isProcessing = true;
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                for (let i = 0; i < splitQueue.length; i++) {
+                    const item = splitQueue[i];
+                    if (item.status === 'done') continue;
+
+                    updateQueueItem('split', i, { status: 'processing', progress: 0, startTime: Date.now() });
+
+                    try {
+                        const cipher = await EncfileCiphers.create(item.algorithm, password, item.size);
+                        const splitSizeMB = parseInt(document.getElementById('split-chunk-size').value);
+                        const splitSize = splitSizeMB * 1024 * 1024;
+                        const totalSize = item.size;
+                        const totalParts = Math.ceil(totalSize / splitSize);
+                        const originalName = item.outputName;
+
+                        for (let partIndex = 0; partIndex < totalParts; partIndex++) {
+                            const partSize = Math.min(splitSize, totalSize - partIndex * splitSize);
+                            let decryptedBlob = new Blob([]);
+                            let partCRC = -1;
+
+                            for (let offset = 0; offset < partSize; offset += 64 * 1024) {
+                                const readSize = Math.min(64 * 1024, partSize - offset);
+                                const fileOffset = partIndex * splitSize + offset;
+                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(fileOffset, fileOffset + readSize));
+                                const decryptedBytes = await cipher.transform(new Uint8Array(chunkBuffer), fileOffset);
+                                for (let j = 0; j < decryptedBytes.length; j++) {
+                                    partCRC ^= decryptedBytes[j];
+                                    for (let k = 0; k < 8; k++) {
+                                        partCRC = (partCRC >>> 1) ^ (partCRC & 1 ? 0xedb88320 : 0);
+                                    }
+                                }
+
+                                decryptedBlob = new Blob([decryptedBlob, decryptedBytes]);
+
+                                const processedBytes = partIndex * splitSize + offset + readSize;
+                                const percent = Math.floor((processedBytes / totalSize) * 100);
+                                updateQueueItem('split', i, { progress: percent });
+                            }
+
+                            partCRC = ~partCRC >>> 0;
+
+                            const enc = new TextEncoder();
+                            const fileNameBytes = enc.encode(originalName);
+
+                            const localHeader = new Uint8Array(30 + fileNameBytes.length);
+                            localHeader.set([0x50, 0x4B, 0x03, 0x04], 0);
+                            localHeader.set([0x14, 0x00], 4);
+                            localHeader.set([0x00, 0x00], 6);
+                            localHeader.set([0x00, 0x00], 8);
+                            localHeader.set([0x00, 0x00], 10);
+                            const lhCrcView = new DataView(localHeader.buffer, 14, 4);
+                            lhCrcView.setUint32(0, partCRC, true);
+                            const lhCompSizeView = new DataView(localHeader.buffer, 18, 4);
+                            lhCompSizeView.setUint32(0, decryptedBlob.size, true);
+                            const lhUncompSizeView = new DataView(localHeader.buffer, 22, 4);
+                            lhUncompSizeView.setUint32(0, decryptedBlob.size, true);
+                            const lhNameLenView = new DataView(localHeader.buffer, 26, 2);
+                            lhNameLenView.setUint16(0, fileNameBytes.length, true);
+                            localHeader.set([0x00, 0x00], 28);
+                            localHeader.set(fileNameBytes, 30);
+
+                            const zipParts = [localHeader.buffer, decryptedBlob];
+
+                            if (partIndex === totalParts - 1) {
+                                const cdRecord = new Uint8Array(46 + fileNameBytes.length);
+                                cdRecord.set([0x50, 0x4B, 0x01, 0x02], 0);
+                                cdRecord.set([0x14, 0x00], 4);
+                                cdRecord.set([0x14, 0x00], 6);
+                                cdRecord.set([0x00, 0x00], 8);
+                                cdRecord.set([0x00, 0x00], 10);
+                                cdRecord.set([0x00, 0x00], 12);
+                                const cdCrcView = new DataView(cdRecord.buffer, 16, 4);
+                                cdCrcView.setUint32(0, partCRC, true);
+                                const cdCompSizeView = new DataView(cdRecord.buffer, 20, 4);
+                                cdCompSizeView.setUint32(0, decryptedBlob.size, true);
+                                const cdUncompSizeView = new DataView(cdRecord.buffer, 24, 4);
+                                cdUncompSizeView.setUint32(0, decryptedBlob.size, true);
+                                const cdNameLenView = new DataView(cdRecord.buffer, 28, 2);
+                                cdNameLenView.setUint16(0, fileNameBytes.length, true);
+                                cdRecord.set([0x00, 0x00], 30);
+                                cdRecord.set([0x00, 0x00], 32);
+                                cdRecord.set([0x00, 0x00], 34);
+                                cdRecord.set([0x00, 0x00], 36);
+                                cdRecord.set([0x00, 0x00], 38);
+                                cdRecord.set([0x00, 0x00], 40);
+                                const cdLocalOffsetView = new DataView(cdRecord.buffer, 42, 4);
+                                cdLocalOffsetView.setUint32(0, 0, true);
+                                cdRecord.set(fileNameBytes, 46);
+
+                                const eocd = new Uint8Array(22);
+                                eocd.set([0x50, 0x4B, 0x05, 0x06], 0);
+                                eocd.set([0x00, 0x00], 4);
+                                eocd.set([0x00, 0x00], 6);
+                                eocd.set([0x01, 0x00], 8);
+                                eocd.set([0x01, 0x00], 10);
+                                const cdSizeView = new DataView(eocd.buffer, 12, 4);
+                                cdSizeView.setUint32(0, cdRecord.byteLength, true);
+                                const cdOffsetView = new DataView(eocd.buffer, 16, 4);
+                                cdOffsetView.setUint32(0, localHeader.byteLength + decryptedBlob.size, true);
+                                eocd.set([0x00, 0x00], 20);
+
+                                zipParts.push(cdRecord.buffer, eocd.buffer);
+                            }
+
+                            const zipBlob = new Blob(zipParts, { type: 'application/zip' });
+                            const partExt = totalParts > 1 ? (partIndex === totalParts - 1 ? '.zip' : `.z${String(partIndex + 1).padStart(2, '0')}`) : '.zip';
+                            const partFileName = originalName + '.part' + (partIndex + 1) + partExt;
+
+                            downloadFile(zipBlob, partFileName);
+
+                            decryptedBlob = null;
+                            await new Promise(r => setTimeout(r, 100));
+                        }
+
+                        updateQueueItem('split', i, { status: 'done', progress: 100, elapsed: formatElapsed(Date.now() - (splitQueue[i].startTime || Date.now())) });
+                    } catch (e) {
+                        console.error(e);
+                        const errorMsg = e.name === 'AbortError' ? '已取消' : e.message;
+                        updateQueueItem('split', i, { status: 'error', error: errorMsg, progress: 100 });
+                    }
+                }
+
+                const doneCount = splitQueue.filter(f => f.status === 'done').length;
+                const errorCount = splitQueue.filter(f => f.status === 'error').length;
+                if (errorCount === 0) {
+                    showStatus(`全部完成，共分卷解密 ${doneCount} 个文件`, 'success');
+                } else {
+                    showStatus(`完成 ${doneCount} 个，失败 ${errorCount} 个`, 'error');
+                }
+            } finally {
+                isProcessing = false;
+                btn.disabled = false;
+                btn.textContent = '开始转压缩包';
+            }
         }
 
         function initModeInfo() {
@@ -1224,23 +1425,48 @@
             } else {
                 encInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
                 decInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
-                setTimeout(() => {
-                    alert(
-                        '浏览器兼容性警告\n\n' +
-                        '当前浏览器不支持流式写入，文件 2-4GB 可能导致崩溃。\n\n' +
-                        '建议更换以下浏览器后使用：\n' +
-                        '• Chrome（谷歌）\n' +
-                        '• Edge（微软）\n' +
-                        '• 其他基于 Chromium 的主流浏览器（含国产浏览器如360、QQ、搜狗等）\n\n' +
-                        '苹果系统（iOS/iPadOS）完全不支持流式写入，所有 iOS 浏览器均受此限制。\n\n' +
-                        '原因：流式写入依赖 File System Access API，该 API 仅在 Chromium 内核浏览器中可用。' +
-                        'iOS 系统强制所有浏览器使用 WebKit 内核，Apple 未实现此 API 且未承诺支持。' +
-                        '当前受限模式下将使用内存累积方式处理，小文件（< 1GB）可正常使用。'
-                    );
-                }, 500);
+                showCompatibilityWarning();
             }
         }
 
+        function getBrowserEnvironment() {
+            const ua = navigator.userAgent || '';
+            const platform = navigator.platform || '';
+            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isEmbeddedBrowser = /MicroMessenger|QQ\/|QQBrowser/i.test(ua);
+            return { isIOS, isEmbeddedBrowser };
+        }
+
+        function closeIosAlert() {
+            document.getElementById('iosAlert').style.display = 'none';
+        }
+
+        function openSplitModeFromIosAlert() {
+            closeIosAlert();
+            switchTab('split');
+        }
+
+        function showCompatibilityWarning() {
+            const { isIOS, isEmbeddedBrowser } = getBrowserEnvironment();
+            if (isIOS) {
+                document.getElementById('iosAlert').style.display = 'flex';
+                return;
+            }
+
+            setTimeout(() => {
+                const browserHint = isEmbeddedBrowser
+                    ? '当前是微信/QQ内置浏览器。请点击右上角菜单，选择“在浏览器打开”，然后使用系统 Chrome 或 Edge。\n\n'
+                    : '请改用支持流式保存的桌面版 Chrome 或 Edge。\n\n';
+                alert(
+                    '浏览器兼容性警告\n\n' +
+                    '当前浏览器不支持流式写入，处理大文件可能导致内存不足或页面崩溃。\n\n' +
+                    browserHint +
+                    '小文件仍可继续使用受限模式。'
+                );
+            }, 500);
+        }
+
+        for (const mode of ['encrypt', 'decrypt', 'split']) handleAlgorithmChange(mode);
         initModeInfo();
 
         async function updateVisitCounter() {
