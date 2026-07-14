@@ -1,6 +1,8 @@
-# 文件加密工具
+# alist-encrypt 全平台解密网页
 
-本地浏览器加密，文件不上传服务器，隐私安全。
+这是 [alist-encrypt](https://github.com/traceless/alist-encrypt) 项目的易分享、全平台解密网页。无需安装客户端，通过浏览器即可在 Windows、macOS、Linux、Android 和 iOS 上解密文件，也支持加密和转分卷 ZIP。
+
+所有加解密都在本地浏览器中完成，文件不会上传到服务器。
 
 ## 功能
 
