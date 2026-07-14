@@ -634,6 +634,17 @@
                     <button class="secondary" onclick="clearFiles('encrypt')" style="flex:1">清空列表</button>
                 </div>
             </div>
+
+            <div class="queue-section" id="encrypt-queue-section">
+                <div class="queue-header">
+                    <span>处理队列</span>
+                    <span class="queue-stats" id="encrypt-queue-stats"></span>
+                </div>
+                <div class="queue-list" id="encrypt-queue-list">
+                    <div class="empty-hint">暂无文件</div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>设置密码</label>
                 <input type="text" id="encrypt-password" placeholder="建议至少8位字符">
@@ -659,16 +670,6 @@
             </div>
             <button class="full" onclick="processEncryption()" id="btn-encrypt">开始加密</button>
             <div id="encrypt-mode-info" class="mode-info"></div>
-
-            <div class="queue-section" id="encrypt-queue-section">
-                <div class="queue-header">
-                    <span>处理队列</span>
-                    <span class="queue-stats" id="encrypt-queue-stats"></span>
-                </div>
-                <div class="queue-list" id="encrypt-queue-list">
-                    <div class="empty-hint">暂无文件</div>
-                </div>
-            </div>
         </div>
 
         <!-- 解密区域 -->
@@ -685,6 +686,17 @@
                     <button class="secondary" onclick="clearFiles('decrypt')" style="flex:1">清空列表</button>
                 </div>
             </div>
+
+            <div class="queue-section" id="decrypt-queue-section">
+                <div class="queue-header">
+                    <span>处理队列</span>
+                    <span class="queue-stats" id="decrypt-queue-stats"></span>
+                </div>
+                <div class="queue-list" id="decrypt-queue-list">
+                    <div class="empty-hint">暂无文件</div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>输入密码</label>
                 <input type="text" id="decrypt-password" placeholder="输入解密密码">
@@ -710,16 +722,6 @@
             </div>
             <button class="full" onclick="processDecryption()" id="btn-decrypt">开始解密</button>
             <div id="decrypt-mode-info" class="mode-info"></div>
-
-            <div class="queue-section" id="decrypt-queue-section">
-                <div class="queue-header">
-                    <span>处理队列</span>
-                    <span class="queue-stats" id="decrypt-queue-stats"></span>
-                </div>
-                <div class="queue-list" id="decrypt-queue-list">
-                    <div class="empty-hint">暂无文件</div>
-                </div>
-            </div>
         </div>
 
         <!-- 转压缩包区域 -->
@@ -736,6 +738,17 @@
                     <button class="secondary" onclick="clearFiles('split')" style="flex:1">清空列表</button>
                 </div>
             </div>
+
+            <div class="queue-section" id="split-queue-section">
+                <div class="queue-header">
+                    <span>处理队列</span>
+                    <span class="queue-stats" id="split-queue-stats"></span>
+                </div>
+                <div class="queue-list" id="split-queue-list">
+                    <div class="empty-hint">暂无文件</div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>输入密码</label>
                 <input type="text" id="split-password" placeholder="输入解密密码">
@@ -782,16 +795,6 @@
                 - iOS 设备（不支持流式写入）<br>
                 - 浏览器内存不足时处理大文件<br>
                 - 下载后用 WinRAR/7-Zip 等解压软件打开最后一个 .zip 文件即可合并还原原文件
-            </div>
-
-            <div class="queue-section" id="split-queue-section">
-                <div class="queue-header">
-                    <span>处理队列</span>
-                    <span class="queue-stats" id="split-queue-stats"></span>
-                </div>
-                <div class="queue-list" id="split-queue-list">
-                    <div class="empty-hint">暂无文件</div>
-                </div>
             </div>
         </div>
 
