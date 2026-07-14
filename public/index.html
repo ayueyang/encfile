@@ -550,7 +550,8 @@
             gap: 10px;
         }
 
-        .modal-actions button {
+        .modal-actions button,
+        .modal-actions a {
             flex: 1;
             padding: 10px 0;
             border-radius: 8px;
@@ -559,6 +560,8 @@
             cursor: pointer;
             border: none;
             transition: all 0.15s;
+            text-align: center;
+            text-decoration: none;
         }
 
         .modal-btn-primary {
@@ -580,6 +583,8 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
+    <script src="/vendor/zip-core.min.js"></script>
+    <script src="/js/split-zip.js"></script>
     <script src="/js/ciphers.js"></script>
 </head>
 
@@ -779,13 +784,14 @@
                 ① 读取加密文件的一部分（按设定大小）<br>
                 ② 解密这部分数据<br>
                 ③ 打包成 ZIP 分卷文件（.z01, .z02... .zip）<br>
-                ④ 自动下载后释放内存<br>
-                ⑤ 继续处理下一部分，循环直到完成<br>
+                ④ 选择目录时自动保存；逐卷下载时每卷都需点击确认<br>
+                ⑤ 当前卷保存后释放内存，再继续处理下一卷<br>
                 <br>
                 <strong>压缩包数量计算：</strong><br>
-                公式：压缩包数量 = 向上取整(文件大小 ÷ 设定的压缩包大小)<br>
+                约等于：向上取整((文件大小 + ZIP 元数据) ÷ 设定的压缩包大小)<br>
+                文件大小接近分卷边界时，ZIP 头和目录可能使结果多 1 卷。<br>
                 例：1.2 GB 文件 ÷ 500 MB = 2.4 → 需要 3 个压缩包（前两个 500 MB，最后一个 200 MB）<br>
-                例：8 GB 文件 ÷ 1 GB = 8 → 需要 8 个压缩包（每个 1 GB）<br>
+                例：8 GB 文件 ÷ 1 GB → 通常为 9 卷（8 个数据卷 + 最后的 ZIP 目录卷）<br>
                 <br>
                 <strong>内存建议：</strong><br>
                 推荐设定值 ≤ 可用运行内存的 50%，避免浏览器卡顿。<br>
@@ -794,7 +800,8 @@
                 <strong>适用场景：</strong><br>
                 - iOS 设备（不支持流式写入）<br>
                 - 浏览器内存不足时处理大文件<br>
-                - 下载后用 WinRAR/7-Zip 等解压软件打开最后一个 .zip 文件即可合并还原原文件
+                - 将同名的 .z01、.z02…和最后一个 .zip 放在同一目录<br>
+                - 用 WinRAR/7-Zip 打开最后一个 .zip，即可合并还原原文件
             </div>
         </div>
 
@@ -981,24 +988,30 @@
         const supportsStreamWrite = typeof window.showSaveFilePicker === 'function';
         const supportsDirPicker = typeof window.showDirectoryPicker === 'function';
 
-        function showOutputModeDialog() {
+        function showOutputModeDialog(options = {}) {
             return new Promise(resolve => {
+                const title = options.title || '多文件输出方式';
+                const description = options.description || '选择输出文件夹后，所有文件自动写入同一目录，无需逐个确认。';
+                const perFileLabel = options.perFileLabel || '逐个下载';
                 const overlay = document.createElement('div');
                 overlay.className = 'modal-overlay';
                 overlay.innerHTML = `
                     <div class="modal-box">
-                        <div class="modal-title">多文件输出方式</div>
+                        <div class="modal-title" id="output-mode-title"></div>
                         <div class="modal-desc">
-                            选择输出文件夹后，所有文件自动写入同一目录，无需逐个确认。<br><br>
+                            <span id="output-mode-description"></span><br><br>
                             <strong>注意：</strong>不能选择系统文件夹（如 C:\\、桌面等），请选择普通文件夹（如 D:\\output 或文档子文件夹）。
                         </div>
                         <div class="modal-actions">
-                            <button class="modal-btn-secondary" id="modal-per-file">逐个下载</button>
+                            <button class="modal-btn-secondary" id="modal-per-file"></button>
                             <button class="modal-btn-primary" id="modal-batch">选择文件夹</button>
                         </div>
                     </div>
                 `;
                 document.body.appendChild(overlay);
+                overlay.querySelector('#output-mode-title').textContent = title;
+                overlay.querySelector('#output-mode-description').textContent = description;
+                overlay.querySelector('#modal-per-file').textContent = perFileLabel;
                 overlay.querySelector('#modal-per-file').onclick = () => {
                     document.body.removeChild(overlay);
                     resolve('per-file');
@@ -1270,6 +1283,72 @@
             setTimeout(() => URL.revokeObjectURL(url), 10000);
         }
 
+        async function writeSplitVolumeToDirectory(dirHandle, volume) {
+            const fileHandle = await dirHandle.getFileHandle(volume.filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            try {
+                await writable.write(volume.blob);
+                await writable.close();
+            } catch (error) {
+                if (typeof writable.abort === 'function') await writable.abort().catch(() => {});
+                throw error;
+            }
+        }
+
+        function downloadSplitVolume(volume) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(volume.blob);
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="split-volume-title">
+                        <div class="modal-title" id="split-volume-title"></div>
+                        <div class="modal-desc" id="split-volume-desc"></div>
+                        <div class="modal-actions">
+                            <button class="modal-btn-secondary" id="split-volume-cancel" type="button">取消</button>
+                            <a class="modal-btn-primary" id="split-volume-download">下载本卷并继续</a>
+                        </div>
+                    </div>
+                `;
+
+                const title = overlay.querySelector('#split-volume-title');
+                const description = overlay.querySelector('#split-volume-desc');
+                const cancel = overlay.querySelector('#split-volume-cancel');
+                const download = overlay.querySelector('#split-volume-download');
+                title.textContent = volume.final ? '最后一卷已生成' : `第 ${volume.index} 卷已生成`;
+                description.textContent = `${volume.filename}（${formatSize(volume.blob.size)}）。请保存本卷，所有卷缺一不可。`;
+                download.href = url;
+                download.download = volume.filename;
+                document.body.appendChild(overlay);
+
+                let settled = false;
+                const cleanup = () => {
+                    URL.revokeObjectURL(url);
+                    overlay.remove();
+                };
+
+                cancel.onclick = () => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    reject(new DOMException('用户取消了分卷下载', 'AbortError'));
+                };
+
+                download.onclick = () => {
+                    if (settled) return false;
+                    settled = true;
+                    download.textContent = '下载已开始';
+                    download.style.pointerEvents = 'none';
+                    cancel.disabled = true;
+                    setTimeout(() => {
+                        cleanup();
+                        resolve();
+                    }, 1200);
+                    return true;
+                };
+            });
+        }
+
         async function processSplitDecryption() {
             const password = document.getElementById('split-password').value;
             const btn = document.getElementById('btn-split');
@@ -1283,6 +1362,22 @@
             btn.textContent = '处理中...';
 
             try {
+                let dirHandle = null;
+                if (supportsDirPicker) {
+                    const outputMode = await showOutputModeDialog({
+                        title: '分卷输出方式',
+                        description: '选择输出文件夹可自动写入全部分卷；逐卷下载会在每卷生成后等待你确认。',
+                        perFileLabel: '逐卷下载',
+                    });
+                    if (outputMode === 'batch') {
+                        try {
+                            dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                        } catch (error) {
+                            if (error.name !== 'AbortError') throw error;
+                        }
+                    }
+                }
+
                 for (let i = 0; i < splitQueue.length; i++) {
                     const item = splitQueue[i];
                     if (item.status === 'done') continue;
@@ -1291,116 +1386,37 @@
 
                     try {
                         const cipher = await EncfileCiphers.create(item.algorithm, password, item.size);
-                        const splitSizeMB = parseInt(document.getElementById('split-chunk-size').value);
-                        const splitSize = splitSizeMB * 1024 * 1024;
-                        const totalSize = item.size;
-                        const totalParts = Math.ceil(totalSize / splitSize);
+                        const splitSize = parseInt(document.getElementById('split-chunk-size').value) * 1024 * 1024;
                         const originalName = item.outputName;
-
-                        for (let partIndex = 0; partIndex < totalParts; partIndex++) {
-                            const partSize = Math.min(splitSize, totalSize - partIndex * splitSize);
-                            let decryptedBlob = new Blob([]);
-                            let partCRC = -1;
-
-                            for (let offset = 0; offset < partSize; offset += 64 * 1024) {
-                                const readSize = Math.min(64 * 1024, partSize - offset);
-                                const fileOffset = partIndex * splitSize + offset;
-                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(fileOffset, fileOffset + readSize));
-                                const decryptedBytes = await cipher.transform(new Uint8Array(chunkBuffer), fileOffset);
-                                for (let j = 0; j < decryptedBytes.length; j++) {
-                                    partCRC ^= decryptedBytes[j];
-                                    for (let k = 0; k < 8; k++) {
-                                        partCRC = (partCRC >>> 1) ^ (partCRC & 1 ? 0xedb88320 : 0);
-                                    }
+                        let lastPercent = -1;
+                        await EncfileSplitZip.create({
+                            filename: originalName,
+                            size: item.size,
+                            volumeSize: splitSize,
+                            chunkSize: 64 * 1024,
+                            async readChunk(offset, length) {
+                                const chunkBuffer = await readFileAsArrayBuffer(item.file.slice(offset, offset + length));
+                                return cipher.transform(new Uint8Array(chunkBuffer), offset);
+                            },
+                            async onProgress(processedBytes, totalSize) {
+                                const percent = totalSize ? Math.min(99, Math.floor((processedBytes / totalSize) * 100)) : 99;
+                                if (percent !== lastPercent) {
+                                    lastPercent = percent;
+                                    updateQueueItem('split', i, { progress: percent });
                                 }
-
-                                decryptedBlob = new Blob([decryptedBlob, decryptedBytes]);
-
-                                const processedBytes = partIndex * splitSize + offset + readSize;
-                                const percent = Math.floor((processedBytes / totalSize) * 100);
-                                updateQueueItem('split', i, { progress: percent });
-                            }
-
-                            partCRC = ~partCRC >>> 0;
-
-                            const enc = new TextEncoder();
-                            const fileNameBytes = enc.encode(originalName);
-
-                            const localHeader = new Uint8Array(30 + fileNameBytes.length);
-                            localHeader.set([0x50, 0x4B, 0x03, 0x04], 0);
-                            localHeader.set([0x14, 0x00], 4);
-                            localHeader.set([0x00, 0x00], 6);
-                            localHeader.set([0x00, 0x00], 8);
-                            localHeader.set([0x00, 0x00], 10);
-                            const lhCrcView = new DataView(localHeader.buffer, 14, 4);
-                            lhCrcView.setUint32(0, partCRC, true);
-                            const lhCompSizeView = new DataView(localHeader.buffer, 18, 4);
-                            lhCompSizeView.setUint32(0, decryptedBlob.size, true);
-                            const lhUncompSizeView = new DataView(localHeader.buffer, 22, 4);
-                            lhUncompSizeView.setUint32(0, decryptedBlob.size, true);
-                            const lhNameLenView = new DataView(localHeader.buffer, 26, 2);
-                            lhNameLenView.setUint16(0, fileNameBytes.length, true);
-                            localHeader.set([0x00, 0x00], 28);
-                            localHeader.set(fileNameBytes, 30);
-
-                            const zipParts = [localHeader.buffer, decryptedBlob];
-
-                            if (partIndex === totalParts - 1) {
-                                const cdRecord = new Uint8Array(46 + fileNameBytes.length);
-                                cdRecord.set([0x50, 0x4B, 0x01, 0x02], 0);
-                                cdRecord.set([0x14, 0x00], 4);
-                                cdRecord.set([0x14, 0x00], 6);
-                                cdRecord.set([0x00, 0x00], 8);
-                                cdRecord.set([0x00, 0x00], 10);
-                                cdRecord.set([0x00, 0x00], 12);
-                                const cdCrcView = new DataView(cdRecord.buffer, 16, 4);
-                                cdCrcView.setUint32(0, partCRC, true);
-                                const cdCompSizeView = new DataView(cdRecord.buffer, 20, 4);
-                                cdCompSizeView.setUint32(0, decryptedBlob.size, true);
-                                const cdUncompSizeView = new DataView(cdRecord.buffer, 24, 4);
-                                cdUncompSizeView.setUint32(0, decryptedBlob.size, true);
-                                const cdNameLenView = new DataView(cdRecord.buffer, 28, 2);
-                                cdNameLenView.setUint16(0, fileNameBytes.length, true);
-                                cdRecord.set([0x00, 0x00], 30);
-                                cdRecord.set([0x00, 0x00], 32);
-                                cdRecord.set([0x00, 0x00], 34);
-                                cdRecord.set([0x00, 0x00], 36);
-                                cdRecord.set([0x00, 0x00], 38);
-                                cdRecord.set([0x00, 0x00], 40);
-                                const cdLocalOffsetView = new DataView(cdRecord.buffer, 42, 4);
-                                cdLocalOffsetView.setUint32(0, 0, true);
-                                cdRecord.set(fileNameBytes, 46);
-
-                                const eocd = new Uint8Array(22);
-                                eocd.set([0x50, 0x4B, 0x05, 0x06], 0);
-                                eocd.set([0x00, 0x00], 4);
-                                eocd.set([0x00, 0x00], 6);
-                                eocd.set([0x01, 0x00], 8);
-                                eocd.set([0x01, 0x00], 10);
-                                const cdSizeView = new DataView(eocd.buffer, 12, 4);
-                                cdSizeView.setUint32(0, cdRecord.byteLength, true);
-                                const cdOffsetView = new DataView(eocd.buffer, 16, 4);
-                                cdOffsetView.setUint32(0, localHeader.byteLength + decryptedBlob.size, true);
-                                eocd.set([0x00, 0x00], 20);
-
-                                zipParts.push(cdRecord.buffer, eocd.buffer);
-                            }
-
-                            const zipBlob = new Blob(zipParts, { type: 'application/zip' });
-                            const partExt = totalParts > 1 ? (partIndex === totalParts - 1 ? '.zip' : `.z${String(partIndex + 1).padStart(2, '0')}`) : '.zip';
-                            const partFileName = originalName + '.part' + (partIndex + 1) + partExt;
-
-                            downloadFile(zipBlob, partFileName);
-
-                            decryptedBlob = null;
-                            await new Promise(r => setTimeout(r, 100));
-                        }
+                            },
+                            async onVolume(volume) {
+                                if (dirHandle) await writeSplitVolumeToDirectory(dirHandle, volume);
+                                else await downloadSplitVolume(volume);
+                            },
+                        });
 
                         updateQueueItem('split', i, { status: 'done', progress: 100, elapsed: formatElapsed(Date.now() - (splitQueue[i].startTime || Date.now())) });
                     } catch (e) {
-                        console.error(e);
+                        if (e.name !== 'AbortError') console.error(e);
                         const errorMsg = e.name === 'AbortError' ? '已取消' : e.message;
                         updateQueueItem('split', i, { status: 'error', error: errorMsg, progress: 100 });
+                        if (e.name === 'AbortError') break;
                     }
                 }
 
