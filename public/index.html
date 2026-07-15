@@ -350,6 +350,17 @@
             border: 1px solid rgba(79, 70, 229, 0.1);
         }
 
+        .chunk-hint {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .chunk-hint.limited {
+            color: var(--warning-text);
+        }
+
         /* 队列样式 */
         .queue-section {
             margin-top: 22px;
@@ -744,14 +755,15 @@
                 <div id="encrypt-algorithm-warning" class="algorithm-warning">RC4 已废弃且安全性较弱，仅用于兼容旧文件。</div>
             </div>
             <div class="form-group">
-                <label>运行内存占用</label>
-                <select id="encrypt-chunk-size" class="chunk-select">
+                <label id="encrypt-chunk-label">处理块大小</label>
+                <select id="encrypt-chunk-size" class="chunk-select" onchange="updateChunkControl('encrypt')">
                     <option value="10">10 MB</option>
                     <option value="100">100 MB</option>
                     <option value="200">200 MB</option>
                     <option value="500">500 MB</option>
                     <option value="1000">1 GB</option>
                 </select>
+                <div id="encrypt-chunk-hint" class="chunk-hint"></div>
             </div>
             <button class="full" onclick="processEncryption()" id="btn-encrypt">开始加密</button>
             <div id="encrypt-mode-info" class="mode-info"></div>
@@ -796,14 +808,15 @@
                 <div id="decrypt-algorithm-warning" class="algorithm-warning">RC4 已废弃且安全性较弱，仅用于兼容旧文件。</div>
             </div>
             <div class="form-group">
-                <label>运行内存占用</label>
-                <select id="decrypt-chunk-size" class="chunk-select">
+                <label id="decrypt-chunk-label">处理块大小</label>
+                <select id="decrypt-chunk-size" class="chunk-select" onchange="updateChunkControl('decrypt')">
                     <option value="10">10 MB</option>
                     <option value="100">100 MB</option>
                     <option value="200">200 MB</option>
                     <option value="500">500 MB</option>
                     <option value="1000">1 GB</option>
                 </select>
+                <div id="decrypt-chunk-hint" class="chunk-hint"></div>
             </div>
             <button class="full" onclick="processDecryption()" id="btn-decrypt">开始解密</button>
             <div id="decrypt-mode-info" class="mode-info"></div>
@@ -899,6 +912,8 @@
         let decryptQueue = [];
         let splitQueue = [];
         let isProcessing = false;
+        const LIMITED_CHUNK_SIZE_MB = 10;
+        const LARGE_FILE_THRESHOLD = 2 * 1024 * 1024 * 1024;
 
         function getQueue(mode) {
             if (mode === 'encrypt') return encryptQueue;
@@ -954,6 +969,7 @@
             const listEl = document.getElementById(mode + '-queue-list');
             const statsEl = document.getElementById(mode + '-queue-stats');
             const sectionEl = document.getElementById(mode + '-queue-section');
+            updateChunkControl(mode);
 
             if (queue.length === 0) {
                 sectionEl.style.display = 'none';
@@ -1040,6 +1056,37 @@
             setQueue(mode, []);
             renderQueue(mode);
             document.getElementById(mode + '-file-input').value = '';
+        }
+
+        function processingChunkSize(mode) {
+            const selected = parseInt(document.getElementById(mode + '-chunk-size').value);
+            const sizeMB = supportsStreamWrite ? selected : LIMITED_CHUNK_SIZE_MB;
+            return sizeMB * 1024 * 1024;
+        }
+
+        function updateChunkControl(mode) {
+            if (mode !== 'encrypt' && mode !== 'decrypt') return;
+            const select = document.getElementById(mode + '-chunk-size');
+            const label = document.getElementById(mode + '-chunk-label');
+            const hint = document.getElementById(mode + '-chunk-hint');
+            if (!select || !label || !hint) return;
+
+            label.textContent = '处理块大小';
+            if (supportsStreamWrite) {
+                select.disabled = false;
+                hint.classList.remove('limited');
+                hint.textContent = `处理完一块就写入硬盘；当前每块 ${formatSize(processingChunkSize(mode))}，总内存不会随完整文件大小累积。`;
+                return;
+            }
+
+            select.value = String(LIMITED_CHUNK_SIZE_MB);
+            select.disabled = true;
+            hint.classList.add('limited');
+            const largest = getQueue(mode).reduce((size, item) => Math.max(size, item.size || 0), 0);
+            const estimate = largest
+                ? `当前最大文件 ${formatSize(largest)}，至少需要约 ${formatSize(largest)} 内存及额外浏览器缓冲。`
+                : '加入文件后会按最大文件显示预计最低内存。';
+            hint.textContent = `受限模式固定使用 ${LIMITED_CHUNK_SIZE_MB} MB 处理块，但完整输出仍会累积在内存中。${estimate}`;
         }
 
         // 初始化文件输入监听
@@ -1176,6 +1223,60 @@
             };
         }
 
+        function showLargeLimitedDecryptDialog(items) {
+            return new Promise(resolve => {
+                const largest = items.reduce((result, item) => item.size > result.size ? item : result, items[0]);
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="limited-decrypt-title">
+                        <div class="modal-title" id="limited-decrypt-title">建议使用转压缩包</div>
+                        <div class="modal-desc" id="limited-decrypt-description"></div>
+                        <div class="modal-actions">
+                            <button class="modal-btn-secondary" id="limited-decrypt-continue" type="button">仍然继续</button>
+                            <button class="modal-btn-primary" id="limited-decrypt-split" type="button">使用转压缩包</button>
+                        </div>
+                    </div>
+                `;
+
+                overlay.querySelector('#limited-decrypt-description').textContent =
+                    `当前浏览器不支持流式写入。${largest.name} 为 ${formatSize(largest.size)}，普通解密需要在内存中保留完整输出，可能导致页面崩溃。转压缩包只保留当前分卷，更适合此浏览器处理大文件。`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#limited-decrypt-continue').onclick = () => {
+                    overlay.remove();
+                    resolve('continue');
+                };
+                overlay.querySelector('#limited-decrypt-split').onclick = () => {
+                    overlay.remove();
+                    resolve('split');
+                };
+            });
+        }
+
+        function transferDecryptItemsToSplit(password) {
+            const candidates = decryptQueue.filter(item => item.status !== 'done');
+            for (const item of candidates) {
+                if (splitQueue.some(existing => existing.file === item.file)) continue;
+                splitQueue.push({
+                    ...item,
+                    status: 'pending',
+                    progress: 0,
+                    error: '',
+                    startTime: 0,
+                    elapsed: '',
+                });
+            }
+            document.getElementById('split-password').value = password;
+            if (candidates.length) {
+                const algorithm = candidates[0].algorithm;
+                document.getElementById('split-algorithm').value = algorithm;
+                document.getElementById('split-algorithm-warning').style.display = algorithm === 'rc4' ? 'block' : 'none';
+            }
+            renderQueue('split');
+            switchTab('split');
+            showStatus(`已将 ${candidates.length} 个文件转入分卷处理`, 'success');
+        }
+
         function checkLargeFileInLimitedMode(fileSize, action) {
             if (supportsStreamWrite) return true;
             const GB = 1024 * 1024 * 1024;
@@ -1236,7 +1337,7 @@
 
                         const cipher = await EncfileCiphers.create(item.algorithm, password, item.size);
                         const outputName = EncfileCiphers.encryptedFilename(item.name, item.algorithm);
-                        const CHUNK_SIZE = 1024 * 1024 * parseInt(document.getElementById('encrypt-chunk-size').value);
+                        const CHUNK_SIZE = processingChunkSize('encrypt');
                         const totalChunks = Math.ceil(item.size / CHUNK_SIZE);
 
                         if (supportsStreamWrite) {
@@ -1315,7 +1416,17 @@
             btn.textContent = '处理中...';
 
             try {
-                const chunkSize = 1024 * 1024 * parseInt(document.getElementById('decrypt-chunk-size').value);
+                const pendingItems = decryptQueue.filter(item => item.status !== 'done');
+                const largeItems = supportsStreamWrite ? [] : pendingItems.filter(item => item.size > LARGE_FILE_THRESHOLD);
+                if (largeItems.length) {
+                    const choice = await showLargeLimitedDecryptDialog(largeItems);
+                    if (choice === 'split') {
+                        transferDecryptItemsToSplit(password);
+                        return;
+                    }
+                }
+
+                const chunkSize = processingChunkSize('decrypt');
                 const outputMode = await showOutputModeDialog(decryptOutputModeOptions(chunkSize));
                 let dirHandle = null;
                 if (outputMode === 'batch') {
@@ -1334,11 +1445,6 @@
                     updateQueueItem('decrypt', i, { status: 'processing', progress: 0, startTime: Date.now() });
 
                     try {
-                        if (!checkLargeFileInLimitedMode(item.size, '解密')) {
-                            updateQueueItem('decrypt', i, { status: 'error', error: '已取消', progress: 100 });
-                            continue;
-                        }
-
                         const cipher = await EncfileCiphers.create(item.algorithm, password, item.size);
                         const totalChunks = Math.ceil(item.size / chunkSize);
                         const originalName = item.outputName;
@@ -1591,13 +1697,15 @@
         function initModeInfo() {
             const encInfo = document.getElementById('encrypt-mode-info');
             const decInfo = document.getElementById('decrypt-mode-info');
+            updateChunkControl('encrypt');
+            updateChunkControl('decrypt');
             if (supportsStreamWrite) {
                 const batchHint = supportsDirPicker ? '多文件自动选择输出目录，无需逐个确认。' : '';
                 encInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。' + batchHint;
                 decInfo.textContent = '流式模式：边处理边写入硬盘，内存占用更小，支持大文件。' + batchHint;
             } else {
-                encInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
-                decInfo.textContent = '受限模式：不支持流式写入，文件 2-4GB 可能崩溃。建议更换 Chrome/Edge。';
+                encInfo.textContent = '受限模式：处理块固定为 10 MB，但完整加密结果仍需保存在内存中。大文件可能导致浏览器崩溃。';
+                decInfo.textContent = '受限模式：处理块固定为 10 MB，但完整解密结果仍需保存在内存中。超过 2 GB 时会建议使用转压缩包。';
                 showCompatibilityWarning();
             }
         }
